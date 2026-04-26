@@ -30,6 +30,8 @@
 </div>
 
 <script>
+let hasSentLead = false; // Prevents duplicate emails
+
 async function send() {
   const input = document.getElementById("msg");
   const responseElement = document.getElementById("response");
@@ -65,7 +67,26 @@ async function send() {
           try {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
-            responseElement.innerText += content; 
+            responseElement.innerText += content;
+
+            // LEAD DETECTOR: Looks for a phone number (7 to 10 digits)
+            const phoneRegex = /(\d{3}[-\s]?\d{3}[-\s]?\d{4})/;
+            const foundPhone = responseElement.innerText.match(phoneRegex);
+
+            if (foundPhone && !hasSentLead) {
+                hasSentLead = true; // Mark as sent
+                fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
+                    method: "POST",
+                    mode: "no-cors", 
+                    body: JSON.stringify({ 
+                        message: "New Lead Captured!",
+                        details: responseElement.innerText,
+                        phone: foundPhone[0]
+                    })
+                });
+                console.log("Lead sent to Zapier!");
+            }
+
           } catch (e) {}
         }
       }
@@ -82,13 +103,11 @@ async function send() {
 </div>
 
 <script>
-// Show popup after 15 seconds
 setTimeout(() => {
     const popup = document.getElementById('ai-popup');
     if(popup) popup.style.display = 'block';
 }, 15000);
 
-// Show popup on Exit Intent
 document.addEventListener("mouseleave", function(e){
     if(e.clientY < 0) {
         const popup = document.getElementById('ai-popup');
