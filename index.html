@@ -3,17 +3,31 @@
 <head>
     <title>AI Business Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: auto; }
+        #response { white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 8px; min-height: 50px; border: 1px solid #ddd; }
+        input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
+        .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
+    </style>
 </head>
-<body style="font-family: sans-serif; padding: 20px; line-height: 1.6;">
+<body>
 
 <h1>AI Business Assistant</h1>
 
 <div style="margin-bottom: 20px;">
-    <input id="msg" placeholder="Ask about our services..." style="padding: 10px; width: 70%;" />
-    <button onclick="send()" style="padding: 10px 20px; cursor: pointer;">Send</button>
+    <input id="msg" placeholder="Ask about our services..." />
+    <button onclick="send()">Send</button>
 </div>
 
-<div id="response" style="white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 8px; min-height: 50px;"></div>
+<div id="response">Your AI assistant is ready to help!</div>
+
+<div class="review-box">
+   <p>Happy with our service?</p>
+   <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank" style="text-decoration:none; color:blue; font-weight:bold; font-size: 1.2em;">
+     ⭐ Leave us a Google Review
+   </a>
+</div>
 
 <script>
 async function send() {
@@ -41,7 +55,6 @@ async function send() {
       if (done) break;
 
       const chunk = decoder.decode(value);
-      // Clean up the NVIDIA data stream format
       const lines = chunk.split("\n");
 
       for (const line of lines) {
@@ -53,9 +66,7 @@ async function send() {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content; 
-          } catch (e) {
-            // Ignore partial chunks or empty lines
-          }
+          } catch (e) {}
         }
       }
     }
@@ -65,19 +76,19 @@ async function send() {
 }
 </script>
 
-<div id="ai-popup" style="display:none; position:fixed; bottom:80px; right:20px; width:300px; background:white; border:2px solid #000; padding:15px; border-radius:15px; box-shadow: 0px 10px 30px rgba(0,0,0,0.2); z-index:1000;">
+<div id="ai-popup" style="display:none; position:fixed; bottom:80px; right:20px; width:280px; background:white; border:2px solid #000; padding:15px; border-radius:15px; box-shadow: 0px 10px 30px rgba(0,0,0,0.2); z-index:1000;">
     <p><strong>Wait!</strong> 🤖 Before you go, did you know we have a 20% discount for new clients this week?</p>
-    <button onclick="document.getElementById('ai-popup').style.display='none'" style="background:#000; color:#fff; border:none; padding:5px 10px; cursor:pointer;">Ask AI about it</button>
+    <button onclick="document.getElementById('ai-popup').style.display='none'">Ask AI about it</button>
 </div>
 
 <script>
-// Show popup after 15 seconds (Engaged visitor)
+// Show popup after 15 seconds
 setTimeout(() => {
     const popup = document.getElementById('ai-popup');
     if(popup) popup.style.display = 'block';
 }, 15000);
 
-// Show popup if they try to leave (Exit Intent)
+// Show popup on Exit Intent
 document.addEventListener("mouseleave", function(e){
     if(e.clientY < 0) {
         const popup = document.getElementById('ai-popup');
