@@ -13,7 +13,7 @@ export const handler = stream(async (event) => {
       "User-Agent": "Mozilla/5.0" 
     },
     body: JSON.stringify({
-      model: "meta/llama-3.1-8b-instruct",
+      model: "meta/llama-4-maverick-17b-128e-instruct",
       messages: [{ role: "user", content: message }],
       stream: true, // Tells NVIDIA to send words one by one
     }),
