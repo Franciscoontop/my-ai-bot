@@ -14,7 +14,19 @@ export const handler = stream(async (event) => {
     },
     body: JSON.stringify({
       model: "meta/llama-4-maverick-17b-128e-instruct",
-      messages: [{ role: "user", content: message }],
+      messages: [
+  { 
+    role: "system", 
+    content: `You are the Lead Marketing Assistant for [Your Business Name]. 
+    Your goal is to help write high-converting social media posts, email newsletters, and ad copy.
+    Rules:
+    1. Always use a professional yet friendly tone.
+    2. Focus on benefits, not just features.
+    3. If asked about things outside of marketing, politely steer the conversation back to business growth.
+    4. Always include a 'Call to Action' (CTA) at the end of every post.`
+  },
+  { role: "user", content: message }
+],,
       stream: true, // Tells NVIDIA to send words one by one
     }),
   });
