@@ -44,7 +44,7 @@
             cursor: pointer;
             font-weight: bold;
             font-size: 24px;
-            color: #888; /* Changed from red to neutral grey */
+            color: #888;
         }
         .close-btn:hover { color: #000; }
     </style>
@@ -134,27 +134,33 @@ async function send() {
 
 // --- POPUP LOGIC ---
 function showPopup() {
-    console.log("showPopup function called!");
     const popup = document.getElementById('ai-popup');
-    popup.classList.add('show');
+    // Check if they have already closed it once
+    const wasClosed = localStorage.getItem('popupShownOnce');
+
+    if (popup && !wasClosed) {
+        console.log("Showing popup for the first time!");
+        popup.classList.add('show');
+    }
 }
 
 function closePopup() {
-    console.log("closePopup function called!");
     const popup = document.getElementById('ai-popup');
     popup.classList.remove('show');
-    // Note: I left localStorage OUT so you can test it every time you refresh.
+    
+    // SET THE COOL DOWN: Save to browser memory
+    localStorage.setItem('popupShownOnce', 'true');
+    console.log("Popup closed. It won't show again for this user.");
 }
 
 // TRIGGER 1: Mouse leaves top
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) { 
-        console.log("Mouse left the top!");
         showPopup();
     }
 });
 
-// TRIGGER 2: Proximity to top (triggers when mouse hits the top 5 pixels)
+// TRIGGER 2: Proximity to top
 document.addEventListener("mousemove", function(e) {
     if (e.clientY < 5) {
         showPopup();
