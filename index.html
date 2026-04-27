@@ -89,4 +89,81 @@ async function send() {
   try {
     const res = await fetch("/api/chat", {
       method: "POST",
-      headers
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message }),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    responseElement.innerText = ""; 
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split("\n");
+
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          const dataStr = line.replace("data: ", "").trim();
+          if (dataStr === "[DONE]") break;
+
+          try {
+            const data = JSON.parse(dataStr);
+            const content = data.choices[0].delta.content || "";
+            responseElement.innerText += content;
+
+            const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
+            const foundPhone = responseElement.innerText.match(phoneRegex);
+
+            if (foundPhone && !hasSentLead) {
+                hasSentLead = true; 
+                fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
+                    method: "POST",
+                    body: JSON.stringify({ phone: foundPhone[0], full_chat: responseElement.innerText })
+                });
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (err) {
+    responseElement.innerText = "Error: " + err.message;
+  }
+}
+
+// --- POPUP LOGIC ---
+
+function showPopup() {
+    const popup = document.getElementById('ai-popup');
+    const wasClosed = localStorage.getItem('discountPopupClosed');
+
+    if (popup && !wasClosed) {
+        popup.classList.add('show');
+    }
+}
+
+function closePopup() {
+    const popup = document.getElementById('ai-popup');
+    popup.classList.remove('show');
+    // Keeps it closed for this session/user
+    localStorage.setItem('discountPopupClosed', 'true');
+}
+
+// TRIGGER: Detects mouse moving toward browser tabs
+document.addEventListener("mouseleave", function(e) {
+    if (e.clientY < 0) { 
+        showPopup();
+    }
+});
+
+// TRIGGER: Proximity sensor (hits within 5px of top)
+document.addEventListener("mousemove", function(e) {
+    if (e.clientY < 5) {
+        showPopup();
+    }
+});
+</script>
+
+</body>
+</html>
