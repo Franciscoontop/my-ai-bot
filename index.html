@@ -28,7 +28,6 @@
             transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
-        /* This class makes it visible and triggers the animation */
         #ai-popup.show {
             display: block;
             opacity: 1;
@@ -136,10 +135,9 @@ function showPopup() {
     const popup = document.getElementById('ai-popup');
     const wasClosed = localStorage.getItem('discountPopupClosed');
 
-    // Only show if user hasn't closed it before
+    // Only show if user hasn't closed it before in this browser
     if (popup && !wasClosed) {
         popup.style.display = 'block';
-        // Delay ensures the animation works
         setTimeout(() => {
             popup.classList.add('show');
         }, 10);
@@ -161,10 +159,7 @@ function closePopup() {
     }, 400);
 }
 
-// Trigger: 15 second timer
-setTimeout(showPopup, 15000);
-
-// Trigger: Mouse leaves top (Exit Intent)
+// ONLY Trigger: Mouse leaves top (Exit Intent)
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) { 
         showPopup();
