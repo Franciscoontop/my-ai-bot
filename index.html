@@ -38,7 +38,9 @@ async function send() {
   const message = input.value;
   
   if (!message) return;
-  console.log("Sending message to AI:", message);
+
+  // LOG 1: Check if the button click works
+  console.log("Button clicked. User said:", message);
 
   responseElement.innerText = "Connecting..."; 
   input.value = ""; 
@@ -64,37 +66,28 @@ async function send() {
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           const dataStr = line.replace("data: ", "").trim();
-          if (dataStr === "[DONE]") {
-              console.log("AI finished speaking.");
-              break;
-          }
+          if (dataStr === "[DONE]") break;
 
           try {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content;
 
-            // STRONGER PHONE DETECTOR: Looks for patterns like 123-456-7890, (123) 456-7890, or 123.456.7890
-            const phoneRegex = /(\+?\d{1,2}\s?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/;
-            const foundPhone = responseElement.innerText.match(phoneRegex);
+            // NEW STRONGER DETECTOR: This will catch 1234567890 or 123-456-7890
+            const phoneRegex = /\d{3,}/; 
+            const foundAnythingWithNumbers = responseElement.innerText.match(phoneRegex);
 
-            if (foundPhone && !hasSentLead) {
-                console.log("Phone number detected:", foundPhone[0]);
+            if (foundAnythingWithNumbers && !hasSentLead) {
+                console.log("System detected numbers. Sending to Zapier...");
                 hasSentLead = true; 
                 
-                // FIXED ZAPIER FETCH
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
                     method: "POST",
                     body: JSON.stringify({ 
-                        lead_status: "URGENT",
-                        phone_captured: foundPhone[0],
-                        full_chat: responseElement.innerText
+                        lead_data: responseElement.innerText,
+                        source: "Vercel AI Bot"
                     })
-                }).then(() => {
-                    console.log("✅ SUCCESS: Lead sent to Zapier!");
-                }).catch((err) => {
-                    console.log("❌ ZAPIER ERROR:", err);
-                });
+                }).then(() => console.log("✅ Zapier Received it!"));
             }
 
           } catch (e) {}
@@ -102,7 +95,7 @@ async function send() {
       }
     }
   } catch (err) {
-    console.error("Connection Error:", err);
+    console.error("Critical Error:", err);
     responseElement.innerText = "Error: " + err.message;
   }
 }
