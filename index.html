@@ -38,8 +38,6 @@ async function send() {
   const message = input.value;
   
   if (!message) return;
-
-  // LOG 1: Check if the button click works
   console.log("Button clicked. User said:", message);
 
   responseElement.innerText = "Connecting..."; 
@@ -73,52 +71,16 @@ async function send() {
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content;
 
-            // NEW STRONGER DETECTOR: This will catch 1234567890 or 123-456-7890
-            const phoneRegex = /\d{3,}/; 
-            const foundAnythingWithNumbers = responseElement.innerText.match(phoneRegex);
+            // MASTER DETECTOR: Looks for Full Phone Numbers OR Emails
+            const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
+            const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/;
+            
+            const foundPhone = responseElement.innerText.match(phoneRegex);
+            const foundEmail = responseElement.innerText.match(emailRegex);
 
-            if (foundAnythingWithNumbers && !hasSentLead) {
-                console.log("System detected numbers. Sending to Zapier...");
+            if ((foundPhone || foundEmail) && !hasSentLead) {
+                console.log("Full lead info detected. Sending to Zapier...");
                 hasSentLead = true; 
                 
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
                     method: "POST",
-                    body: JSON.stringify({ 
-                        lead_data: responseElement.innerText,
-                        source: "Vercel AI Bot"
-                    })
-                }).then(() => console.log("✅ Zapier Received it!"));
-            }
-
-          } catch (e) {}
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Critical Error:", err);
-    responseElement.innerText = "Error: " + err.message;
-  }
-}
-</script>
-
-<div id="ai-popup" style="display:none; position:fixed; bottom:80px; right:20px; width:280px; background:white; border:2px solid #000; padding:15px; border-radius:15px; box-shadow: 0px 10px 30px rgba(0,0,0,0.2); z-index:1000;">
-    <p><strong>Wait!</strong> 🤖 Before you go, did you know we have a 20% discount for new clients this week?</p>
-    <button onclick="document.getElementById('ai-popup').style.display='none'">Ask AI about it</button>
-</div>
-
-<script>
-setTimeout(() => {
-    const popup = document.getElementById('ai-popup');
-    if(popup) popup.style.display = 'block';
-}, 15000);
-
-document.addEventListener("mouseleave", function(e){
-    if(e.clientY < 0) {
-        const popup = document.getElementById('ai-popup');
-        if(popup) popup.style.display = 'block';
-    }
-}, false);
-</script>
-
-</body>
-</html>
