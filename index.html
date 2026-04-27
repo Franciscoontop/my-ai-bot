@@ -1,4 +1,4 @@
--<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>AI Business Assistant</title>
@@ -10,9 +10,8 @@
         button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
         .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
         
-        /* Popup Styling with Fading Animation */
+        /* Fixed Popup Styling */
         #ai-popup { 
-            display: none; 
             position: fixed; 
             bottom: 80px; 
             right: 20px; 
@@ -23,15 +22,19 @@
             border-radius: 15px; 
             box-shadow: 0px 10px 30px rgba(0,0,0,0.2); 
             z-index: 9999;
+            
+            /* Animation Setup */
             opacity: 0;
+            visibility: hidden;
             transform: translateY(20px);
-            transition: opacity 0.4s ease, transform 0.4s ease;
+            transition: opacity 0.4s ease, transform 0.4s ease, visibility 0.4s;
         }
 
+        /* The class that triggers the fade-in */
         #ai-popup.show {
-            display: block !important;
-    opacity: 1 !important;
-    transform: translateY(0) !important;
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .close-btn {
@@ -73,7 +76,6 @@
 <script>
 let hasSentLead = false;
 
-// --- AI CHAT LOGIC ---
 async function send() {
   const input = document.getElementById("msg");
   const responseElement = document.getElementById("response");
@@ -129,39 +131,33 @@ async function send() {
   }
 }
 
-// --- SMART POPUP LOGIC ---
+// --- POPUP LOGIC ---
 
 function showPopup() {
     const popup = document.getElementById('ai-popup');
     const wasClosed = localStorage.getItem('discountPopupClosed');
 
-    // Only show if user hasn't closed it before in this browser
     if (popup && !wasClosed) {
-        popup.style.display = 'block';
-        setTimeout(() => {
-            popup.classList.add('show');
-        }, 10);
+        popup.classList.add('show');
     }
 }
 
 function closePopup() {
     const popup = document.getElementById('ai-popup');
-    
-    // Start fade out animation
     popup.classList.remove('show');
-    
-    // Remember that the user closed it
     localStorage.setItem('discountPopupClosed', 'true');
-
-    // Fully hide after animation (0.4s)
-    setTimeout(() => {
-        popup.style.display = 'none';
-    }, 400);
 }
 
-// ONLY Trigger: Mouse leaves top (Exit Intent)
+// TRIGGER: Detects mouse moving out of the window toward the top
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) { 
+        showPopup();
+    }
+});
+
+// EXTRA TRIGGER: Detects if mouse gets very close to the top edge (Proximity)
+document.addEventListener("mousemove", function(e) {
+    if (e.clientY < 5) {
         showPopup();
     }
 });
