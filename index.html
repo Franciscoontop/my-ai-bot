@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>AI Business Assistant</title>
@@ -61,6 +62,7 @@
 <script>
 let hasSentLead = false;
 
+// --- AI CHAT LOGIC ---
 async function send() {
   const input = document.getElementById("msg");
   const responseElement = document.getElementById("response");
@@ -119,29 +121,32 @@ async function send() {
 // --- POPUP LOGIC ---
 
 function closePopup() {
-    console.log("Closing popup...");
     document.getElementById('ai-popup').style.display = 'none';
 }
 
-// Show after 15 seconds
-setTimeout(() => {
-    showPopup();
-}, 15000);
+function showPopup() {
+    const popup = document.getElementById('ai-popup');
+    if (popup && popup.style.display !== 'block') {
+        popup.style.display = 'block';
+    }
+}
 
-// Show when mouse leaves the top (Exit Intent)
+// 1. Timer backup (shows after 15 seconds)
+setTimeout(showPopup, 15000);
+
+// 2. Exit Intent (Detects mouse leaving toward the top)
 document.addEventListener("mouseleave", function(e) {
-    if (e.clientY < 0) { // Mouse moved above the window
+    if (e.clientY < 0) { 
         showPopup();
     }
 });
 
-function showPopup() {
-    const popup = document.getElementById('ai-popup');
-    if (popup) {
-        console.log("Showing popup!");
-        popup.style.display = 'block';
+// 3. Fast-Tracking (Triggers if mouse hits the top 10 pixels of the page)
+document.addEventListener("mousemove", function(e) {
+    if (e.clientY < 10) {
+        showPopup();
     }
-}
+});
 </script>
 
 </body>
