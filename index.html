@@ -38,7 +38,7 @@ async function send() {
   const message = input.value;
   
   if (!message) return;
-  console.log("Button clicked. User said:", message);
+  console.log("Send button clicked. Processing message...");
 
   responseElement.innerText = "Connecting..."; 
   input.value = ""; 
@@ -71,7 +71,7 @@ async function send() {
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content;
 
-            // MASTER DETECTOR: Looks for Full Phone Numbers OR Emails
+            // Updated Regex to catch full phone numbers and emails
             const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
             const emailRegex = /([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/;
             
@@ -79,8 +79,47 @@ async function send() {
             const foundEmail = responseElement.innerText.match(emailRegex);
 
             if ((foundPhone || foundEmail) && !hasSentLead) {
-                console.log("Full lead info detected. Sending to Zapier...");
                 hasSentLead = true; 
+                console.log("Full lead info detected. Sending to Zapier...");
                 
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
                     method: "POST",
+                    body: JSON.stringify({ 
+                        phone: foundPhone ? foundPhone[0] : "None provided",
+                        email: foundEmail ? foundEmail[0] : "None provided",
+                        full_chat: responseElement.innerText
+                    })
+                }).then(() => console.log("✅ Zapier Received Full Data!"));
+            }
+          } catch (e) {}
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Critical Error:", err);
+    responseElement.innerText = "Error: " + err.message;
+  }
+}
+</script>
+
+<div id="ai-popup" style="display:none; position:fixed; bottom:80px; right:20px; width:280px; background:white; border:2px solid #000; padding:15px; border-radius:15px; box-shadow: 0px 10px 30px rgba(0,0,0,0.2); z-index:1000;">
+    <p><strong>Wait!</strong> 🤖 Before you go, did you know we have a 20% discount for new clients this week?</p>
+    <button onclick="document.getElementById('ai-popup').style.display='none'">Ask AI about it</button>
+</div>
+
+<script>
+setTimeout(() => {
+    const popup = document.getElementById('ai-popup');
+    if(popup) popup.style.display = 'block';
+}, 15000);
+
+document.addEventListener("mouseleave", function(e){
+    if(e.clientY < 0) {
+        const popup = document.getElementById('ai-popup');
+        if(popup) popup.style.display = 'block';
+    }
+}, false);
+</script>
+
+</body>
+</html>
