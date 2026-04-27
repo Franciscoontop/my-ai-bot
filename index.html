@@ -10,31 +10,31 @@
         button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
         .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
         
-        /* POPUP CORE STYLES */
+        /* Popup Styling */
         #ai-popup { 
             position: fixed; 
             bottom: 80px; 
             right: 20px; 
             width: 280px; 
             background: white; 
-            border: 3px solid #000; /* Thicker border to make it obvious */
+            border: 2px solid #000; 
             padding: 20px; 
             border-radius: 15px; 
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5); 
-            z-index: 10000; /* Highest possible priority */
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.2); 
+            z-index: 10000;
             
-            /* Hidden State */
+            /* Animation Setup */
             opacity: 0;
             visibility: hidden;
-            transform: translateY(30px);
-            transition: all 0.5s ease-in-out;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease, visibility 0.4s;
         }
 
-        /* Visible State */
+        /* The class that triggers the show */
         #ai-popup.show {
-            visibility: visible !important;
-            opacity: 1 !important;
-            transform: translateY(0) !important;
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .close-btn {
@@ -43,16 +43,15 @@
             right: 12px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 24px;
-            color: #ff0000; /* Red so you can't miss it */
+            font-size: 20px;
+            color: #888;
         }
+        .close-btn:hover { color: #000; }
     </style>
 </head>
 <body>
 
 <h1>AI Business Assistant</h1>
-
-<button onclick="showPopup()" style="background: red; margin-bottom: 10px;">TEST POPUP MANUALLY</button>
 
 <div style="margin-bottom: 20px;">
     <input id="msg" placeholder="Ask about our services..." />
@@ -63,49 +62,31 @@
 
 <div id="ai-popup">
     <span class="close-btn" onclick="closePopup()">×</span>
-    <p><strong>Wait!</strong> 🤖 20% discount detected for you!</p>
-    <button onclick="closePopup()" style="width:100%;">Close</button>
+    <p><strong>Wait!</strong> 🤖 Before you go, did you know we have a 20% discount for new clients this week?</p>
+    <button onclick="closePopup()" style="width:100%;">Ask AI about it</button>
+</div>
+
+<div class="review-box">
+   <p>Happy with our service?</p>
+   <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank" style="text-decoration:none; color:blue; font-weight:bold; font-size: 1.2em;">
+     ⭐ Leave us a Google Review
+   </a>
 </div>
 
 <script>
-// --- CHAT LOGIC ---
+let hasSentLead = false;
+
+// --- AI CHAT LOGIC ---
 async function send() {
   const input = document.getElementById("msg");
   const responseElement = document.getElementById("response");
-  if (!input.value) return;
+  const message = input.value;
+  if (!message) return;
+
   responseElement.innerText = "Connecting..."; 
-  // ... (Full chat logic remains active here)
-}
+  input.value = ""; 
 
-// --- POPUP LOGIC ---
-function showPopup() {
-    console.log("showPopup function called!");
-    const popup = document.getElementById('ai-popup');
-    popup.classList.add('show');
-}
-
-function closePopup() {
-    console.log("closePopup function called!");
-    const popup = document.getElementById('ai-popup');
-    popup.classList.remove('show');
-    // I REMOVED LOCALSTORAGE so it triggers every single time for testing!
-}
-
-// TRIGGER 1: Mouse leaves top
-document.addEventListener("mouseleave", function(e) {
-    if (e.clientY < 0) { 
-        console.log("Mouse left the top!");
-        showPopup();
-    }
-});
-
-// TRIGGER 2: Proximity to top
-document.addEventListener("mousemove", function(e) {
-    if (e.clientY < 5) {
-        showPopup();
-    }
-});
-</script>
-
-</body>
-</html>
+  try {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers
