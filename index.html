@@ -9,6 +9,21 @@
         input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; }
         button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
         .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
+        
+        /* Popup Styling */
+        #ai-popup { 
+            display: none; 
+            position: fixed; 
+            bottom: 80px; 
+            right: 20px; 
+            width: 280px; 
+            background: white; 
+            border: 2px solid #000; 
+            padding: 15px; 
+            border-radius: 15px; 
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.2); 
+            z-index: 9999; 
+        }
     </style>
 </head>
 <body>
@@ -22,6 +37,11 @@
 
 <div id="response">Your AI assistant is ready to help!</div>
 
+<div id="ai-popup">
+    <p><strong>Wait!</strong> 🤖 Before you go, did you know we have a 20% discount for new clients this week?</p>
+    <button onclick="closePopup()">Ask AI about it</button>
+</div>
+
 <div class="review-box">
    <p>Happy with our service?</p>
    <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank" style="text-decoration:none; color:blue; font-weight:bold; font-size: 1.2em;">
@@ -30,9 +50,9 @@
 </div>
 
 <script>
-// IMPORTANT: This script must be inside the body tag
 let hasSentLead = false;
 
+// Main Chat Function
 async function send() {
   const input = document.getElementById("msg");
   const responseElement = document.getElementById("response");
@@ -72,12 +92,11 @@ async function send() {
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content;
 
-            // Detects full 10-digit phone numbers
             const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
             const foundPhone = responseElement.innerText.match(phoneRegex);
 
             if (foundPhone && !hasSentLead) {
-                console.log("Full phone detected. Alerting Zapier...");
+                console.log("Lead detected. Alerting Zapier...");
                 hasSentLead = true; 
                 
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
@@ -97,6 +116,31 @@ async function send() {
     responseElement.innerText = "Error: " + err.message;
   }
 }
+
+// Popup Logic
+function closePopup() {
+    document.getElementById('ai-popup').style.display = 'none';
+}
+
+// 1. Show after 15 seconds
+setTimeout(() => {
+    const popup = document.getElementById('ai-popup');
+    if(popup && popup.style.display !== 'block') {
+        console.log("Timer triggered popup");
+        popup.style.display = 'block';
+    }
+}, 15000);
+
+// 2. Show on Exit Intent (Mouse moves to top of screen)
+document.addEventListener("mouseleave", function(e){
+    if(e.clientY < 5) {
+        const popup = document.getElementById('ai-popup');
+        if(popup && popup.style.display !== 'block') {
+            console.log("Exit intent triggered popup");
+            popup.style.display = 'block';
+        }
+    }
+}, false);
 </script>
 
 </body>
