@@ -10,7 +10,7 @@
         button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
         .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
         
-        /* Fixed Popup Styling */
+        /* Popup Styling with Fading Animation */
         #ai-popup { 
             display: none; 
             position: fixed; 
@@ -22,16 +22,29 @@
             padding: 20px; 
             border-radius: 15px; 
             box-shadow: 0px 10px 30px rgba(0,0,0,0.2); 
-            z-index: 9999; 
+            z-index: 9999;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
         }
+
+        /* This class makes it visible and triggers the animation */
+        #ai-popup.show {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
         .close-btn {
             position: absolute;
             top: 5px;
-            right: 10px;
+            right: 12px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 18px;
+            font-size: 20px;
+            color: #888;
         }
+        .close-btn:hover { color: #000; }
     </style>
 </head>
 <body>
@@ -117,32 +130,43 @@ async function send() {
   }
 }
 
-// --- POPUP LOGIC ---
-
-function closePopup() {
-    document.getElementById('ai-popup').style.display = 'none';
-}
+// --- SMART POPUP LOGIC ---
 
 function showPopup() {
     const popup = document.getElementById('ai-popup');
-    if (popup && popup.style.display !== 'block') {
+    const wasClosed = localStorage.getItem('discountPopupClosed');
+
+    // Only show if user hasn't closed it before
+    if (popup && !wasClosed) {
         popup.style.display = 'block';
+        // Delay ensures the animation works
+        setTimeout(() => {
+            popup.classList.add('show');
+        }, 10);
     }
 }
 
-// 1. Timer backup (shows after 15 seconds)
+function closePopup() {
+    const popup = document.getElementById('ai-popup');
+    
+    // Start fade out animation
+    popup.classList.remove('show');
+    
+    // Remember that the user closed it
+    localStorage.setItem('discountPopupClosed', 'true');
+
+    // Fully hide after animation (0.4s)
+    setTimeout(() => {
+        popup.style.display = 'none';
+    }, 400);
+}
+
+// Trigger: 15 second timer
 setTimeout(showPopup, 15000);
 
-// 2. Exit Intent (Detects mouse leaving toward the top)
+// Trigger: Mouse leaves top (Exit Intent)
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) { 
-        showPopup();
-    }
-});
-
-// 3. Fast-Tracking (Triggers if mouse hits the top 10 pixels of the page)
-document.addEventListener("mousemove", function(e) {
-    if (e.clientY < 10) {
         showPopup();
     }
 });
