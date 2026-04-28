@@ -47,7 +47,7 @@
 
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
 
-        /* Messages */
+        /* Message Rows */
         .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
         .ai-row { align-self: flex-start; flex-direction: row; }
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
@@ -61,7 +61,7 @@
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
 
-        /* Booking Success Overlay */
+        /* Success Message */
         .lead-captured { 
             background: rgba(0, 255, 136, 0.1); 
             border: 1px dashed #00ff88; 
@@ -171,7 +171,7 @@ async function send() {
 
     chatHistory.push({ role: "assistant", content: fullAIResponse });
 
-    // --- SMART ZAPIER INTEGRATION ---
+    // --- ENHANCED ZAPIER LOGIC ---
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const timeRegex = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|at \d|pm|am|clock)/i;
     
@@ -182,27 +182,36 @@ async function send() {
     if (foundPhone && foundTime && !leadTracker.isSent) {
         leadTracker.isSent = true; 
         
-        // Find the first message to extract the name
-        const nameMsg = chatHistory.find(m => m.role === "user")?.content || "New Customer";
+        // Extract Name (First user message)
+        const nameMsg = chatHistory.find(m => m.role === "user")?.content || "New Lead";
         
+        // Extract Service (Searches history for mentions of service keywords)
+        const serviceMsg = chatHistory.find(m => 
+            m.role === "user" && 
+            (m.content.toLowerCase().includes("want") || 
+             m.content.toLowerCase().includes("need") || 
+             m.content.toLowerCase().includes("service"))
+        )?.content || "See Transcript";
+
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
             body: JSON.stringify({ 
-                type: "BOOKING REQUEST",
-                customer_name: nameMsg.split(' ')[0], // Extract first name
+                type: "NEW BOOKING REQUEST",
+                customer_name: nameMsg.split(' ')[0],
                 phone: foundPhone[0],
-                booking_time: foundTime[0], // NEW: Sends time separately
-                full_transcript: container.innerText, // NEW: Renamed for clarity in Zapier
+                booking_time: foundTime[0],
+                requested_service: serviceMsg,
+                full_transcript: container.innerText,
                 timestamp: new Date().toLocaleString()
             })
         }).then(() => {
-            container.innerHTML += `<div class="lead-captured">📅 Booking Details Sent! <br>The owner will contact you shortly to confirm.</div>`;
+            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent! <br>The owner will confirm your details shortly.</div>`;
             container.scrollTop = container.scrollHeight;
         });
     }
 
   } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Disconnected. Refresh to try again.";
+    document.getElementById(aiBubbleId).innerText = "Connection error. Please refresh.";
   }
 }
 </script>
