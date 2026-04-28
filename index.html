@@ -6,48 +6,52 @@
     <style>
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: auto; min-height: 100vh; }
 
-        /* FIXED: Floating AI Bubble with Glow Restored */
+        /* MINIMAL GLOW & FIXED POSITIONING */
         #chat-bubble {
             position: fixed; 
             bottom: 25px; 
             right: 25px; 
-            width: 70px; 
-            height: 70px;
+            width: 65px; 
+            height: 65px;
             background: #fff; 
             border-radius: 50%; 
             display: flex; 
             align-items: center;
             justify-content: center; 
             cursor: pointer; 
-            z-index: 10000; /* High Z-index ensures it's above everything */
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0px 4px 20px rgba(255, 255, 255, 0.4);
+            /* Extra high z-index to ensure it beats the URL/UI borders */
+            z-index: 999999 !important; 
+            transition: transform 0.3s ease;
+            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.2);
         }
 
-        /* THE GLOW IS BACK */
+        /* SUBTLE HOVER EFFECT */
+        #chat-bubble:hover {
+            transform: scale(1.05);
+        }
+
+        /* MINIMAL AI GLOW - Tuned down for a clean look */
         #chat-bubble::after {
             content: ''; 
             position: absolute; 
-            width: 120%; 
-            height: 120%; 
+            width: 100%; 
+            height: 100%; 
             border-radius: 50%;
-            background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff, #00ffff);
-            background-size: 400%; 
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
             z-index: -1; 
-            filter: blur(15px); 
-            opacity: 0.6;
-            animation: glow-rotate 8s linear infinite;
+            filter: blur(8px); /* Reduced blur */
+            opacity: 0.3; /* Minimal transparency */
+            animation: slow-glow 10s linear infinite;
         }
 
-        @keyframes glow-rotate { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+        @keyframes slow-glow { 0% { opacity: 0.2; } 50% { opacity: 0.4; } 100% { opacity: 0.2; } }
 
-        .ai-icon-svg { width: 35px; height: 35px; fill: #000; animation: sparkle-dance 4s ease-in-out infinite; }
-        @keyframes sparkle-dance { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+        .ai-icon-svg { width: 32px; height: 32px; fill: #000; }
 
-        /* Chat Window Positioning */
+        /* CHAT WINDOW */
         #chat-window {
             position: fixed; 
-            bottom: 110px; 
+            bottom: 100px; 
             right: 25px; 
             width: 360px; 
             height: 550px;
@@ -56,27 +60,32 @@
             border-radius: 20px;
             display: none; 
             flex-direction: column; 
-            box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
-            z-index: 10001; 
+            box-shadow: 0px 15px 50px rgba(0,0,0,0.8);
+            z-index: 999999 !important; 
             overflow: hidden;
         }
 
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .header-title { display: flex; align-items: center; gap: 10px; }
-        .header-text b { display: block; font-size: 15px; color: #fff; }
+        .header-text b { display: block; font-size: 14px; color: #fff; }
         .header-text span { font-size: 11px; color: #00ff88; }
+        
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
+        
         .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
-        .ai-row { align-self: flex-start; flex-direction: row; }
+        .ai-row { align-self: flex-start; }
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
+        
         .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
-        .user-avatar { background: #333; font-size: 12px; font-weight: bold; color: #aaa; border: 1px solid #444; }
-        .mini-icon { width: 16px; height: 16px; fill: #000; }
+        .user-avatar { background: #333; font-size: 12px; color: #aaa; border: 1px solid #444; }
+        
         .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
-        .lead-captured { background: rgba(0, 255, 136, 0.1); border: 1px dashed #00ff88; color: #00ff88; font-size: 13px; padding: 12px; text-align: center; border-radius: 10px; margin: 10px 0; font-weight: 500; }
+        
+        .lead-captured { background: rgba(0, 255, 136, 0.05); border: 1px dashed #00ff88; color: #00ff88; font-size: 12px; padding: 10px; text-align: center; border-radius: 10px; margin: 10px 0; }
+
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
         .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
@@ -92,25 +101,23 @@
     <div id="chat-header">
         <div class="header-title">
             <div class="avatar ai-avatar">
-                <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+                <svg style="width:16px; height:16px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
             </div>
             <div class="header-text">
-                <b>AI Booking Assistant</b>
-                <span>● Online 24/7</span>
+                <b>AI Assistant</b>
+                <span>● Online</span>
             </div>
         </div>
-        <span style="cursor:pointer; color:#888;" onclick="toggleChat()">✕</span>
+        <span style="cursor:pointer; color:#666;" onclick="toggleChat()">✕</span>
     </div>
     <div id="response-container">
         <div class="message-row ai-row">
-            <div class="avatar ai-avatar">
-                <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-            </div>
-            <div class="msg-bubble ai-msg">Hi! I'm here to help you get booked. What is your <b>Name</b> and the <b>Service</b> you're interested in?</div>
+            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
+            <div class="msg-bubble ai-msg">Hi! How can I help you today? Please let me know your <b>Name</b> and the <b>Service</b> you need.</div>
         </div>
     </div>
     <div class="input-area">
-        <input id="msg" placeholder="Type here..." onkeypress="if(event.key === 'Enter') send()" />
+        <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
         <button class="send-btn" onclick="send()">Send</button>
     </div>
 </div>
@@ -125,56 +132,60 @@ function toggleChat() {
 }
 
 async function send() {
-  const input = document.getElementById("msg");
-  const container = document.getElementById("response-container");
-  const userText = input.value;
-  if (!userText) return;
+    const input = document.getElementById("msg");
+    const container = document.getElementById("response-container");
+    const userText = input.value;
+    if (!userText) return;
 
-  container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
-  
-  const aiBubbleId = "ai-" + Date.now();
-  container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
-  
-  chatHistory.push({ role: "user", content: userText });
-  input.value = ""; 
-  container.scrollTop = container.scrollHeight;
+    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
+    
+    const aiBubbleId = "ai-" + Date.now();
+    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+    
+    chatHistory.push({ role: "user", content: userText });
+    input.value = ""; 
+    container.scrollTop = container.scrollHeight;
 
-  try {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: chatHistory }),
-    });
+    try {
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: chatHistory }),
+        });
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    const aiBubble = document.getElementById(aiBubbleId);
-    aiBubble.innerHTML = ""; 
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        const aiBubble = document.getElementById(aiBubbleId);
+        aiBubble.innerHTML = ""; 
 
-    let fullAIResponse = "";
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const chunk = decoder.decode(value);
-      const lines = chunk.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const dataStr = line.replace("data: ", "").trim();
-          if (dataStr === "[DONE]") break;
-          try {
-            const data = JSON.parse(dataStr);
-            const content = data.choices[0].delta.content || "";
-            aiBubble.innerHTML += content;
-            fullAIResponse += content;
-            container.scrollTop = container.scrollHeight;
-          } catch (e) {}
+        let fullAIResponse = "";
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const dataStr = line.replace("data: ", "").trim();
+                    if (dataStr === "[DONE]") break;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        const content = data.choices[0].delta.content || "";
+                        aiBubble.innerHTML += content;
+                        fullAIResponse += content;
+                        container.scrollTop = container.scrollHeight;
+                    } catch (e) {}
+                }
+            }
         }
-      }
+        chatHistory.push({ role: "assistant", content: fullAIResponse });
+        extractAndSendLead(userText, fullAIResponse, container);
+    } catch (err) {
+        document.getElementById(aiBubbleId).innerText = "Error. Please refresh.";
     }
+}
 
-    chatHistory.push({ role: "assistant", content: fullAIResponse });
-
-    // --- REFINED DATA EXTRACTION ---
+function extractAndSendLead(userText, fullAIResponse, container) {
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const timeRegex = /((\d{1,2}(:\d{2})?)\s?(am|pm|o'clock))|((at|around)\s\d{1,2})|(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
     
@@ -184,42 +195,27 @@ async function send() {
 
     if (foundPhone && foundTime && !leadTracker.isSent) {
         leadTracker.isSent = true; 
-        
         const userMessages = chatHistory.filter(m => m.role === "user");
         const firstUserMsg = userMessages[0]?.content || "";
-        
         let namePart = firstUserMsg.replace(/(my name is|i am|i'm|it's|this is|hey|hi|hello)\s+/gi, "").trim();
         let rawName = namePart.split(' ')[0].replace(/[^a-zA-Z]/g, ""); 
-        const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Customer";
-        
-        const serviceMsg = userMessages.find(m => 
-            m.content.toLowerCase().includes("want") || 
-            m.content.toLowerCase().includes("need") ||
-            m.content.toLowerCase().includes("service")
-        )?.content || "Requested Service";
+        const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Lead";
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
             body: JSON.stringify({ 
-                type: "NEW BOOKING REQUEST",
                 customer_name: finalName, 
                 phone: foundPhone[0],
                 booking_time: foundTime[0], 
-                requested_service: serviceMsg,
-                full_transcript: container.innerText,
-                timestamp: new Date().toLocaleString()
+                requested_service: "New Request",
+                full_transcript: container.innerText
             })
         }).then(() => {
-            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent! <br>The owner will confirm your details shortly.</div>`;
+            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent!</div>`;
             container.scrollTop = container.scrollHeight;
         });
     }
-
-  } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Connection error. Please refresh.";
-  }
 }
 </script>
-
 </body>
 </html>
