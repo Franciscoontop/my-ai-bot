@@ -8,22 +8,23 @@
         body { 
             background-color: #000; 
             color: #fff; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Segoe UI', Arial, sans-serif; 
             padding: 20px; 
             line-height: 1.6; 
             max-width: 800px; 
             margin: auto; 
+            min-height: 100vh;
         }
 
-        h1 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+        h1 { border-bottom: 1px solid #333; padding-bottom: 10px; color: #fff; }
 
         /* Floating AI Bubble */
         #chat-bubble {
             position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 60px;
-            height: 60px;
+            bottom: 25px;
+            right: 25px;
+            width: 65px;
+            height: 65px;
             background: #fff;
             color: #000;
             border-radius: 50%;
@@ -32,24 +33,23 @@
             justify-content: center;
             cursor: pointer;
             box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.1);
-            z-index: 10001;
+            z-index: 999;
             transition: all 0.3s ease;
-            font-size: 24px;
+            font-size: 28px;
         }
 
-        /* The Glow Effect on Hover */
+        /* Glow on Hover */
         #chat-bubble:hover {
             transform: scale(1.1);
-            box-shadow: 0px 0px 20px 5px rgba(255, 255, 255, 0.6);
+            box-shadow: 0px 0px 25px 8px rgba(255, 255, 255, 0.4);
         }
 
-        /* Hover Label */
         #bubble-label {
             position: absolute;
-            right: 70px;
+            right: 80px;
             background: #222;
             color: #fff;
-            padding: 5px 12px;
+            padding: 6px 14px;
             border-radius: 8px;
             font-size: 14px;
             white-space: nowrap;
@@ -58,95 +58,105 @@
             transition: opacity 0.3s ease;
             border: 1px solid #444;
         }
-
         #chat-bubble:hover #bubble-label { opacity: 1; }
 
         /* Floating Chat Window */
         #chat-window {
             position: fixed;
-            bottom: 90px;
-            right: 20px;
-            width: 320px;
-            height: 450px;
+            bottom: 100px;
+            right: 25px;
+            width: 330px;
+            height: 480px;
             background: #111;
             border: 1px solid #333;
-            border-radius: 15px;
-            display: none; /* Toggle via JS */
+            border-radius: 16px;
+            display: none; 
             flex-direction: column;
+            box-shadow: 0px 10px 40px rgba(0,0,0,0.9);
+            z-index: 1000;
             overflow: hidden;
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.8);
-            z-index: 10001;
         }
 
-        #chat-header { background: #222; padding: 15px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        #chat-header { background: #1a1a1a; padding: 15px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         
         #response-container { 
             flex: 1; 
             padding: 15px; 
             overflow-y: auto; 
             font-size: 14px; 
-            white-space: pre-wrap;
-            background: #0a0a0a;
+            background: #050505;
+            color: #ddd;
         }
 
-        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 5px; }
+        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         
         input { 
             flex: 1; 
             padding: 10px; 
-            background: #222; 
-            border: 1px solid #444; 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
             color: #fff; 
-            border-radius: 5px; 
-            outline: none;
+            border-radius: 6px;
         }
 
-        button { 
-            padding: 10px; 
+        .send-btn { 
+            padding: 10px 15px; 
             background: #fff; 
             color: #000; 
             border: none; 
-            border-radius: 5px; 
+            border-radius: 6px; 
             cursor: pointer; 
             font-weight: bold;
         }
 
-        /* Exit Intent Popup Styles */
+        /* --- THE POPUP FIX --- */
         #ai-popup { 
             position: fixed; 
-            bottom: 50%; 
-            right: 50%; 
-            transform: translate(50%, 50%) translateY(30px);
-            width: 300px; 
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -40%); /* Start slightly lower for animation */
+            width: 320px; 
             background: #1a1a1a; 
             border: 2px solid #fff; 
-            padding: 25px; 
-            border-radius: 15px; 
-            box-shadow: 0px 0px 50px rgba(0,0,0,1); 
-            z-index: 10005;
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0px 0px 100px rgba(0,0,0,1); 
+            z-index: 10001; /* Must be higher than chat */
+            text-align: center;
+            
+            /* Hidden by default */
             opacity: 0;
             visibility: hidden;
-            transition: all 0.5s ease-in-out;
-            text-align: center;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
+        /* When the 'show' class is added */
         #ai-popup.show {
             visibility: visible !important;
             opacity: 1 !important;
-            transform: translate(50%, 50%) translateY(0) !important;
+            transform: translate(-50%, -50%) !important;
         }
 
-        .close-x { cursor: pointer; position: absolute; top: 10px; right: 15px; color: #888; font-size: 20px; }
+        .close-x { cursor: pointer; position: absolute; top: 12px; right: 18px; color: #666; font-size: 24px; }
+        .close-x:hover { color: #fff; }
 
-        .review-box { margin-top: 60px; border-top: 1px solid #333; padding-top: 20px; text-align: center; }
-        a { color: #aaa; text-decoration: none; }
-        a:hover { color: #fff; }
+        .popup-btn {
+            width: 100%;
+            padding: 12px;
+            margin-top: 15px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
 
-<h1>AI Business Assistant</h1>
-<p>Welcome to our new high-performance interface. Explore our services while our AI remains ready to assist you in the corner.</p>
+<h1>Agency Dashboard</h1>
+<p>The AI assistant is active in the bottom right. Move your mouse to the top of the window to test the exit-intent popup.</p>
 
 <div id="chat-bubble" onclick="toggleChat()">
     <span id="bubble-label">Talk to me!</span>
@@ -156,45 +166,42 @@
 <div id="chat-window">
     <div id="chat-header">
         <span>AI Assistant</span>
-        <span style="cursor:pointer" onclick="toggleChat()">—</span>
+        <span style="cursor:pointer" onclick="toggleChat()">✕</span>
     </div>
-    <div id="response-container">Hello! How can I help you today?</div>
+    <div id="response-container">Ready to help. What's on your mind?</div>
     <div class="input-area">
         <input id="msg" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') send()" />
-        <button onclick="send()">Send</button>
+        <button class="send-btn" onclick="send()">Send</button>
     </div>
 </div>
 
 <div id="ai-popup">
     <span class="close-x" onclick="closePopup()">×</span>
-    <p><strong>Exclusive Offer</strong> 🤖<br><br>Don't leave yet! Get a 20% discount on your first project.</p>
-    <button onclick="closePopup()" style="width:100%; background: #fff; color: #000;">Claim Offer</button>
-</div>
-
-<div class="review-box">
-   <p>Happy with our service?</p>
-   <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank">
-     ⭐ Leave us a Google Review
-   </a>
+    <p style="font-size: 1.2em;"><strong>Wait!</strong> 🤖</p>
+    <p>Before you go, would you like a **20% discount** on your first month?</p>
+    <button class="popup-btn" onclick="closePopup()">Claim My Discount</button>
 </div>
 
 <script>
 let hasSentLead = false;
 
+// Toggle Chat Window
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
 
+// AI Chat Send Logic
 async function send() {
   const input = document.getElementById("msg");
-  const responseElement = document.getElementById("response-container");
+  const container = document.getElementById("response-container");
   const message = input.value;
   if (!message) return;
 
-  responseElement.innerText += "\n\nYou: " + message + "\n\nAI: Connecting..."; 
+  container.innerHTML += `<div style="margin-bottom:10px;"><b>You:</b> ${message}</div>`;
+  container.innerHTML += `<div id="current-ai" style="margin-bottom:10px;"><b>AI:</b> Thinking...</div>`;
   input.value = ""; 
-  responseElement.scrollTop = responseElement.scrollHeight;
+  container.scrollTop = container.scrollHeight;
 
   try {
     const res = await fetch("/api/chat", {
@@ -205,10 +212,8 @@ async function send() {
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    
-    // Clear the "Connecting..." text for the stream
-    const baseText = responseElement.innerText.replace("AI: Connecting...", "AI: ");
-    responseElement.innerText = baseText;
+    const aiResponseDiv = document.getElementById("current-ai");
+    aiResponseDiv.innerHTML = "<b>AI:</b> "; 
 
     while (true) {
       const { done, value } = await reader.read();
@@ -223,33 +228,36 @@ async function send() {
           try {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
-            responseElement.innerText += content;
-            responseElement.scrollTop = responseElement.scrollHeight;
+            aiResponseDiv.innerHTML += content;
+            container.scrollTop = container.scrollHeight;
 
-            // Lead Capture Logic
+            // Simple Phone Lead Capture
             const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
-            const foundPhone = responseElement.innerText.match(phoneRegex);
+            const foundPhone = aiResponseDiv.innerText.match(phoneRegex);
             if (foundPhone && !hasSentLead) {
                 hasSentLead = true; 
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
                     method: "POST",
-                    body: JSON.stringify({ phone: foundPhone[0], full_chat: responseElement.innerText })
+                    body: JSON.stringify({ phone: foundPhone[0], chat: aiResponseDiv.innerText })
                 });
             }
           } catch (e) {}
         }
       }
     }
+    aiResponseDiv.id = ""; // Reset ID for next message
   } catch (err) {
-    responseElement.innerText += "\nError: " + err.message;
+    container.innerHTML += `<div>Error: ${err.message}</div>`;
   }
 }
 
-// --- POPUP LOGIC ---
+// --- UPDATED POPUP LOGIC ---
 function showPopup() {
     const popup = document.getElementById('ai-popup');
-    const wasClosed = localStorage.getItem('popupShownOnce');
+    const wasClosed = localStorage.getItem('exitPopupClosed');
+    
     if (popup && !wasClosed) {
+        console.log("Triggering Popup");
         popup.classList.add('show');
     }
 }
@@ -257,13 +265,14 @@ function showPopup() {
 function closePopup() {
     const popup = document.getElementById('ai-popup');
     popup.classList.remove('show');
-    localStorage.setItem('popupShownOnce', 'true');
+    localStorage.setItem('exitPopupClosed', 'true');
 }
 
-// Triggers for Exit Intent
+// Triggers
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) showPopup();
 });
+
 document.addEventListener("mousemove", function(e) {
     if (e.clientY < 5) showPopup();
 });
