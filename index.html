@@ -6,16 +6,18 @@
     <style>
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
 
+        /* THE FIX: Wrapper to ensure visibility near borders */
         #ai-widget-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; 
+            pointer-events: none; /* Let clicks pass through to site */
             z-index: 2147483647 !important;
         }
 
+        /* BUBBLE - Minimal Glow Restored */
         #chat-bubble {
             position: absolute; 
             bottom: 25px; 
@@ -50,6 +52,7 @@
 
         .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
 
+        /* CHAT WINDOW */
         #chat-window {
             position: absolute; 
             bottom: 95px; 
@@ -131,20 +134,23 @@ let chatHistory = [];
 let leadTracker = { isSent: false };
 let hasAutoPopped = false;
 
+// 1. OPEN/CLOSE LOGIC
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
 
-// THE FIX: EXIT INTENT TRIGGER
-document.addEventListener('mouseleave', (e) => {
-    // clientY <= 0 detects when mouse leaves the top of the browser viewport
-    if (e.clientY <= 0 && !hasAutoPopped) {
+// 2. THE FIX: EXIT INTENT TRIGGER
+// This watches for the mouse moving toward the URL bar
+document.addEventListener('mousemove', function(e) {
+    if (e.clientY < 10 && !hasAutoPopped) {
+        console.log("Exit trigger activated!");
         document.getElementById('chat-window').style.display = 'flex';
-        hasAutoPopped = true; 
+        hasAutoPopped = true; // Only trigger once per session
     }
 });
 
+// 3. SEND LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
@@ -199,6 +205,7 @@ async function send() {
     }
 }
 
+// 4. LEAD CAPTURE LOGIC
 function extractAndSendLead(userText, fullAIResponse, container) {
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
@@ -206,13 +213,11 @@ function extractAndSendLead(userText, fullAIResponse, container) {
 
     if (foundPhone && !leadTracker.isSent) {
         leadTracker.isSent = true; 
-        const nameMsg = chatHistory.find(m => m.role === "user");
-        const namePart = nameMsg ? nameMsg.content.split(' ')[0] : "New Customer";
-        const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
+        const namePart = chatHistory.find(m => m.role === "user").content.split(' ')[0];
+        const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase() || "New Customer";
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
-            mode: 'no-cors', // Added for common Zapier webhook issues
             body: JSON.stringify({ 
                 customer_name: finalName, 
                 phone: foundPhone[0],
@@ -221,7 +226,7 @@ function extractAndSendLead(userText, fullAIResponse, container) {
         }).then(() => {
             container.innerHTML += `<div class="lead-captured">📅 Details captured. We'll be in touch!</div>`;
             container.scrollTop = container.scrollHeight;
-        }).catch(err => console.log("Webhook error:", err));
+        });
     }
 }
 </script>
