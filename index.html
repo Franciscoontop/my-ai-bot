@@ -4,159 +4,78 @@
     <title>AI Business Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        /* Base Dark Theme */
-        body { 
-            background-color: #000; 
-            color: #fff; 
-            font-family: 'Segoe UI', Arial, sans-serif; 
-            padding: 20px; 
-            line-height: 1.6; 
-            max-width: 800px; 
-            margin: auto; 
-            min-height: 100vh;
-        }
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: auto; min-height: 100vh; }
 
-        h1 { border-bottom: 1px solid #333; padding-bottom: 10px; color: #fff; }
-
-        /* Floating AI Bubble Container */
+        /* Floating AI Bubble */
         #chat-bubble {
-            position: fixed;
-            bottom: 25px;
-            right: 25px;
-            width: 70px;
-            height: 70px;
-            background: #fff;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            z-index: 999;
+            position: fixed; bottom: 25px; right: 25px; width: 70px; height: 70px;
+            background: #fff; border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; cursor: pointer; z-index: 999;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0px 4px 20px rgba(255, 255, 255, 0.2);
         }
 
-        /* Rainbow Processing Glow */
         #chat-bubble::after {
-            content: '';
-            position: absolute;
-            width: 110%;
-            height: 110%;
-            border-radius: 50%;
+            content: ''; position: absolute; width: 110%; height: 110%; border-radius: 50%;
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff, #00ffff);
-            background-size: 400%;
-            z-index: -1;
-            filter: blur(10px);
-            opacity: 0.3;
+            background-size: 400%; z-index: -1; filter: blur(10px); opacity: 0.3;
             animation: glow-rotate 8s linear infinite;
         }
 
-        @keyframes glow-rotate {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        @keyframes glow-rotate { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
-        .ai-icon {
-            width: 35px;
-            height: 35px;
-            fill: #000;
-            animation: sparkle-dance 4s ease-in-out infinite;
-        }
+        .ai-icon-svg { width: 35px; height: 35px; fill: #000; animation: sparkle-dance 4s ease-in-out infinite; }
+        @keyframes sparkle-dance { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 
-        @keyframes sparkle-dance {
-            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.8; }
-            50% { transform: scale(1.15) rotate(10deg); opacity: 1; }
-        }
-
-        #chat-bubble:hover {
-            transform: scale(1.1) translateY(-5px);
-            box-shadow: 0px 15px 35px rgba(255, 255, 255, 0.4);
-        }
-
-        /* --- CHAT WINDOW & MESSAGE BUBBLES --- */
+        /* Chat Window */
         #chat-window {
-            position: fixed;
-            bottom: 110px;
-            right: 25px;
-            width: 350px;
-            height: 500px;
-            background: #111;
-            border: 1px solid #333;
-            border-radius: 20px;
-            display: none; 
-            flex-direction: column;
-            box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
-            z-index: 1000;
-            overflow: hidden;
-            animation: slide-up 0.4s ease-out;
+            position: fixed; bottom: 110px; right: 25px; width: 350px; height: 500px;
+            background: #111; border: 1px solid #333; border-radius: 20px;
+            display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
+            z-index: 1000; overflow: hidden;
         }
 
-        #response-container { 
-            flex: 1; 
-            padding: 15px; 
-            overflow-y: auto; 
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            background: #050505;
-        }
+        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
 
-        /* Message Bubble Styles */
-        .msg-bubble {
-            max-width: 80%;
-            padding: 10px 14px;
-            border-radius: 18px;
-            font-size: 14px;
-            word-wrap: break-word;
-            line-height: 1.4;
-        }
+        /* --- MESSAGE ROW LOGIC --- */
+        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+        .ai-row { align-self: flex-start; flex-direction: row; }
+        .user-row { align-self: flex-end; flex-direction: row-reverse; }
 
-        .user-msg {
-            align-self: flex-end;
-            background: #fff;
-            color: #000;
-            border-bottom-right-radius: 4px;
-        }
+        /* Avatars */
+        .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ai-avatar { background: #fff; }
+        .user-avatar { background: #333; font-size: 12px; font-weight: bold; color: #aaa; border: 1px solid #444; }
+        
+        .mini-icon { width: 16px; height: 16px; fill: #000; }
 
-        .ai-msg {
-            align-self: flex-start;
-            background: #222;
-            color: #fff;
-            border: 1px solid #333;
-            border-bottom-left-radius: 4px;
-        }
+        /* Bubbles */
+        .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
+        .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
+        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
 
-        .loading-dots { font-style: italic; color: #888; }
-
-        /* Rest of UI */
-        #chat-header { background: #1a1a1a; padding: 18px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        /* Input Area */
+        #chat-header { background: #1a1a1a; padding: 18px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
         .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-
-        /* Exit Popup */
-        #ai-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; background: #1a1a1a; border: 1px solid #fff; padding: 30px; border-radius: 20px; z-index: 2000; text-align: center; opacity: 0; visibility: hidden; transition: 0.3s; }
-        #ai-popup.show { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
 
-<h1>Agency Dashboard</h1>
-
 <div id="chat-bubble" onclick="toggleChat()">
-    <svg class="ai-icon" viewBox="0 0 24 24">
-        <path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" />
-    </svg>
+    <svg class="ai-icon-svg" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
 </div>
 
 <div id="chat-window">
-    <div id="chat-header">
-        <span>AI Assistant</span>
-        <span style="cursor:pointer" onclick="toggleChat()">✕</span>
-    </div>
+    <div id="chat-header"><span>AI Assistant</span><span style="cursor:pointer" onclick="toggleChat()">✕</span></div>
     <div id="response-container">
-        <div class="msg-bubble ai-msg">Hello! How can I help you today?</div>
+        <div class="message-row ai-row">
+            <div class="avatar ai-avatar">
+                <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+            </div>
+            <div class="msg-bubble ai-msg">Hi! How can I help you?</div>
+        </div>
     </div>
     <div class="input-area">
         <input id="msg" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') send()" />
@@ -164,15 +83,7 @@
     </div>
 </div>
 
-<div id="ai-popup">
-    <p><strong>Wait!</strong> ✨</p>
-    <p>Get a 20% discount before you leave!</p>
-    <button onclick="closePopup()" style="width:100%; padding:10px; border-radius:10px; border:none; cursor:pointer; font-weight:bold;">Claim Discount</button>
-</div>
-
 <script>
-let hasSentLead = false;
-
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
@@ -184,12 +95,22 @@ async function send() {
   const message = input.value;
   if (!message) return;
 
-  // Add User Bubble
-  container.innerHTML += `<div class="msg-bubble user-msg">${message}</div>`;
+  // Add User Row
+  container.innerHTML += `
+    <div class="message-row user-row">
+        <div class="avatar user-avatar">U</div>
+        <div class="msg-bubble user-msg">${message}</div>
+    </div>`;
   
-  // Add Placeholder AI Bubble
   const aiBubbleId = "ai-" + Date.now();
-  container.innerHTML += `<div id="${aiBubbleId}" class="msg-bubble ai-msg"><span class="loading-dots">Thinking...</span></div>`;
+  // Add AI Row Placeholder
+  container.innerHTML += `
+    <div class="message-row ai-row">
+        <div class="avatar ai-avatar">
+            <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+        </div>
+        <div id="${aiBubbleId}" class="msg-bubble ai-msg">Thinking...</div>
+    </div>`;
   
   input.value = ""; 
   container.scrollTop = container.scrollHeight;
@@ -204,43 +125,29 @@ async function send() {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     const aiBubble = document.getElementById(aiBubbleId);
-    aiBubble.innerHTML = ""; // Clear "Thinking..."
+    aiBubble.innerHTML = ""; 
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       const chunk = decoder.decode(value);
       const lines = chunk.split("\n");
-
       for (const line of lines) {
         if (line.startsWith("data: ")) {
           const dataStr = line.replace("data: ", "").trim();
           if (dataStr === "[DONE]") break;
           try {
             const data = JSON.parse(dataStr);
-            const content = data.choices[0].delta.content || "";
-            aiBubble.innerHTML += content;
+            aiBubble.innerHTML += data.choices[0].delta.content || "";
             container.scrollTop = container.scrollHeight;
           } catch (e) {}
         }
       }
     }
   } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Error: Could not connect.";
+    document.getElementById(aiBubbleId).innerText = "Error: Offline.";
   }
 }
-
-function showPopup() {
-    const popup = document.getElementById('ai-popup');
-    if (!localStorage.getItem('exitPopupClosed')) popup.classList.add('show');
-}
-
-function closePopup() {
-    document.getElementById('ai-popup').classList.remove('show');
-    localStorage.setItem('exitPopupClosed', 'true');
-}
-
-document.addEventListener("mouseleave", (e) => { if (e.clientY < 0) showPopup(); });
 </script>
 
 </body>
