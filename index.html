@@ -18,7 +18,7 @@
         #chat-bubble::after {
             content: ''; position: absolute; width: 110%; height: 110%; border-radius: 50%;
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff, #00ffff);
-            background-size: 400%; z-index: -1; filter: blur(10px); opacity: 0.3;
+            background-size: 400%; z-1; filter: blur(10px); opacity: 0.3;
             animation: glow-rotate 8s linear infinite;
         }
 
@@ -168,30 +168,30 @@ async function send() {
 
     chatHistory.push({ role: "assistant", content: fullAIResponse });
 
-    // --- UPDATED ZAPIER LOGIC (NO MORE "HI" ERRORS) ---
+    // --- ENHANCED LOGIC FOR NAME AND ACCURATE TIME ---
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
-    const timeRegex = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|at \d|pm|am|clock)/i;
+    // This improved time regex grabs numbers + am/pm (e.g., 3pm, 12:30)
+    const timeRegex = /((\d{1,2}(:\d{2})?)\s?(am|pm|o'clock))|((at|around)\s\d{1,2})|(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
     
-    const combinedLog = (userText + fullAIResponse).toLowerCase();
+    const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
     const foundPhone = combinedLog.match(phoneRegex);
     const foundTime = combinedLog.match(timeRegex);
 
     if (foundPhone && foundTime && !leadTracker.isSent) {
         leadTracker.isSent = true; 
         
-        // Find the first message the USER sent to get their name
+        // Fix Name: Filter only USER messages so we don't grab the AI's "Hi"
         const userMessages = chatHistory.filter(m => m.role === "user");
         const firstUserMsg = userMessages[0]?.content || "";
-        
-        // Clean the name: remove "My name is", "I'm", etc.
+        // Clean the string to pull out just the first name
         const nameClean = firstUserMsg.replace(/(my name is|i am|i'm|this is|hey|hi)\s+/i, "").split(' ')[0];
-
-        // Find the service from user history
+        
+        // Find Service: Look for keywords in user messages
         const serviceMsg = userMessages.find(m => 
             m.content.toLowerCase().includes("want") || 
             m.content.toLowerCase().includes("need") ||
             m.content.toLowerCase().includes("service")
-        )?.content || "Check Transcript";
+        )?.content || "See Transcript";
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
@@ -199,7 +199,7 @@ async function send() {
                 type: "NEW BOOKING REQUEST",
                 customer_name: nameClean, 
                 phone: foundPhone[0],
-                booking_time: foundTime[0],
+                booking_time: foundTime[0], 
                 requested_service: serviceMsg,
                 full_transcript: container.innerText,
                 timestamp: new Date().toLocaleString()
