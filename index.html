@@ -1,128 +1,124 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <style>
-        /* THE OVERRIDE: Ensure the container can't be hidden by the site */
-        #force-wrapper {
-            position: fixed !important;
-            z-index: 2147483647 !important;
-            bottom: 0;
-            right: 0;
-            pointer-events: none;
-        }
-
-        /* THE BUBBLE */
-        #chat-bubble {
-            position: absolute;
-            bottom: 25px;
-            right: 25px;
-            width: 65px;
-            height: 65px;
-            background: #ffffff;
-            border-radius: 50%;
-            cursor: pointer !important;
-            pointer-events: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            transition: all 0.2s ease;
-        }
-
-        /* MINIMAL GLOW - Clean and subtle */
-        #chat-bubble::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            box-shadow: 0 0 15px 2px rgba(0, 255, 255, 0.2);
-            pointer-events: none;
-        }
-
-        /* THE WINDOW - Hidden by default */
-        #chat-window {
-            position: absolute;
-            bottom: 100px;
-            right: 25px;
-            width: 350px;
-            height: 500px;
-            background: #111;
-            border: 1px solid #333;
-            border-radius: 15px;
-            display: none; /* Changed via JS */
-            flex-direction: column;
-            pointer-events: auto;
-            overflow: hidden;
-            font-family: sans-serif;
-            color: white;
-        }
-
-        /* UI Elements */
-        #chat-header { padding: 15px; background: #222; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
-        #chat-content { flex: 1; padding: 15px; overflow-y: auto; background: #000; display: flex; flex-direction: column; gap: 10px; }
-        .msg { padding: 8px 12px; border-radius: 12px; font-size: 14px; max-width: 80%; }
-        .ai { background: #333; align-self: flex-start; }
-        .user { background: #fff; color: #000; align-self: flex-end; }
-        .input-box { padding: 15px; display: flex; gap: 5px; background: #111; }
-        input { flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #444; background: #222; color: #fff; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body>
 
-<div id="force-wrapper">
-    <div id="chat-bubble">
-        <svg width="30" height="30" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-    </div>
-
-    <div id="chat-window">
-        <div id="chat-header">
-            <span>Booking AI</span>
-            <span id="close-btn" style="cursor:pointer">✕</span>
-        </div>
-        <div id="chat-content">
-            <div class="msg ai">Hi! What is your name and what service do you need?</div>
-        </div>
-        <div class="input-box">
-            <input id="user-input" placeholder="Type here...">
-            <button id="send-btn" style="cursor:pointer">Send</button>
-        </div>
-    </div>
-</div>
-
 <script>
-    const bubble = document.getElementById('chat-bubble');
-    const windowEl = document.getElementById('chat-window');
-    const closeBtn = document.getElementById('close-btn');
-    const sendBtn = document.getElementById('send-btn');
-    const input = document.getElementById('user-input');
-    const content = document.getElementById('chat-content');
+(function() {
+    // 1. Create the Styles in a protected tag
+    const style = document.createElement('style');
+    style.innerHTML = `
+        #ai-master-container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        
+        /* THE BUBBLE */
+        .floating-ai-btn {
+            position: fixed !important; bottom: 20px !important; right: 20px !important;
+            width: 60px !important; height: 60px !important;
+            background: #ffffff !important; border-radius: 50% !important;
+            display: flex !important; align-items: center !important; justify-content: center !important;
+            cursor: pointer !important; z-index: 2147483647 !important;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        /* MINIMAL GLOW */
+        .floating-ai-btn::after {
+            content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border-radius: 50%; background: linear-gradient(45deg, #00d2ff, #92fe9d);
+            z-index: -1; opacity: 0.3; filter: blur(8px);
+        }
+
+        .floating-ai-btn:hover { transform: scale(1.05) translateY(-2px); }
+
+        /* THE CHAT WINDOW */
+        .ai-chat-card {
+            position: fixed !important; bottom: 90px !important; right: 20px !important;
+            width: 350px !important; height: 500px !important;
+            background: #000000 !important; border: 1px solid #333 !important;
+            border-radius: 20px !important; z-index: 2147483647 !important;
+            display: none; /* Controlled by State */
+            flex-direction: column !important; overflow: hidden !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.6) !important;
+        }
+
+        .ai-card-active { display: flex !important; animation: popIn 0.3s ease-out; }
+
+        @keyframes popIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        #ai-msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0a0a0a; }
+        .ai-input-wrap { padding: 15px; background: #111; display: flex; gap: 8px; border-top: 1px solid #222; }
+        .ai-input-wrap input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 10px; outline: none; }
+        .ai-send-btn { background: #fff; border: none; padding: 0 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        .bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; max-width: 80%; line-height: 1.4; }
+        .ai-bubble { background: #222; color: #fff; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .user-bubble { background: #fff; color: #000; align-self: flex-end; border-bottom-right-radius: 2px; }
+    `;
+    document.head.appendChild(style);
+
+    // 2. Build the HTML Structure
+    const container = document.createElement('div');
+    container.id = "ai-master-container";
+    container.innerHTML = `
+        <div class="floating-ai-btn" id="ai-toggle">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div class="ai-chat-card" id="ai-window">
+            <div style="padding:15px; background:#111; border-bottom:1px solid #222; font-weight:bold; color:white; display:flex; justify-content:space-between;">
+                <span>Assistant</span>
+                <span id="ai-close" style="cursor:pointer; color:#666;">✕</span>
+            </div>
+            <div id="ai-msg-area">
+                <div class="bubble ai-bubble">Hi! I'm here to help. What's your <b>Name</b> and the <b>Service</b> you're looking for?</div>
+            </div>
+            <div class="ai-input-wrap">
+                <input type="text" id="ai-input-field" placeholder="Message...">
+                <button class="ai-send-btn" id="ai-send-trigger">Send</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(container);
+
+    // 3. The Logic
+    const toggle = document.getElementById('ai-toggle');
+    const win = document.getElementById('ai-window');
+    const close = document.getElementById('ai-close');
+    const input = document.getElementById('ai-input-field');
+    const sendBtn = document.getElementById('ai-send-trigger');
+    const msgArea = document.getElementById('ai-msg-area');
 
     let history = [];
 
-    // THE FORCE TOGGLE
-    bubble.addEventListener('click', function(e) {
-        console.log("Bubble Clicked!"); // Check your browser console!
-        windowEl.style.display = 'flex';
-    });
+    // TOGGLE WINDOW
+    const handleToggle = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        win.classList.toggle('ai-card-active');
+    };
 
-    closeBtn.addEventListener('click', function() {
-        windowEl.style.display = 'none';
-    });
+    toggle.addEventListener('click', handleToggle);
+    close.addEventListener('click', () => win.classList.remove('ai-card-active'));
 
+    // SEND MESSAGE
     async function sendMessage() {
         const text = input.value.trim();
         if(!text) return;
 
-        content.innerHTML += `<div class="msg user">${text}</div>`;
+        // Add User Message
+        msgArea.innerHTML += `<div class="bubble user-bubble">${text}</div>`;
         history.push({role: "user", content: text});
         input.value = "";
-        
-        const aiMsg = document.createElement('div');
-        aiMsg.className = "msg ai";
-        aiMsg.innerText = "...";
-        content.appendChild(aiMsg);
-        content.scrollTop = content.scrollHeight;
+        msgArea.scrollTop = msgArea.scrollHeight;
+
+        // AI Placeholder
+        const aiId = "ai-" + Date.now();
+        msgArea.innerHTML += `<div class="bubble ai-bubble" id="${aiId}">...</div>`;
 
         try {
             const res = await fetch("/api/chat", {
@@ -133,7 +129,9 @@
 
             const reader = res.body.getReader();
             const decoder = new TextDecoder();
-            aiMsg.innerText = "";
+            const aiBubble = document.getElementById(aiId);
+            aiBubble.innerText = "";
+            let fullText = "";
 
             while (true) {
                 const {done, value} = await reader.read();
@@ -142,24 +140,28 @@
                 const lines = chunk.split("\n");
                 for (const line of lines) {
                     if (line.startsWith("data: ")) {
-                        const data = line.replace("data: ", "").trim();
-                        if (data === "[DONE]") break;
+                        const dataStr = line.replace("data: ", "").trim();
+                        if (dataStr === "[DONE]") break;
                         try {
-                            const parsed = JSON.parse(data);
-                            const val = parsed.choices[0].delta.content || "";
-                            aiMsg.innerText += val;
-                        } catch(e) {}
+                            const data = JSON.parse(dataStr);
+                            const content = data.choices[0].delta.content || "";
+                            aiBubble.innerText += content;
+                            fullText += content;
+                            msgArea.scrollTop = msgArea.scrollHeight;
+                        } catch (e) {}
                     }
                 }
             }
-            history.push({role: "assistant", content: aiMsg.innerText});
-        } catch(e) {
-            aiMsg.innerText = "Error connecting.";
+            history.push({role: "assistant", content: fullText});
+        } catch (e) {
+            document.getElementById(aiId).innerText = "Sorry, I'm having trouble connecting.";
         }
     }
 
-    sendBtn.onclick = sendMessage;
-    input.onkeypress = (e) => { if(e.key === 'Enter') sendMessage(); };
+    sendBtn.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+
+})();
 </script>
 
 </body>
