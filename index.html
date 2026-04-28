@@ -1,168 +1,221 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Business Assistant</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: auto; min-height: 100vh; }
+
+        /* MINIMAL GLOW & FIXED POSITIONING */
+        #chat-bubble {
+            position: fixed; 
+            bottom: 25px; 
+            right: 25px; 
+            width: 65px; 
+            height: 65px;
+            background: #fff; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center;
+            justify-content: center; 
+            cursor: pointer; 
+            /* Extra high z-index to ensure it beats the URL/UI borders */
+            z-index: 999999 !important; 
+            transition: transform 0.3s ease;
+            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.2);
+        }
+
+        /* SUBTLE HOVER EFFECT */
+        #chat-bubble:hover {
+            transform: scale(1.05);
+        }
+
+        /* MINIMAL AI GLOW - Tuned down for a clean look */
+        #chat-bubble::after {
+            content: ''; 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            z-index: -1; 
+            filter: blur(8px); /* Reduced blur */
+            opacity: 0.3; /* Minimal transparency */
+            animation: slow-glow 10s linear infinite;
+        }
+
+        @keyframes slow-glow { 0% { opacity: 0.2; } 50% { opacity: 0.4; } 100% { opacity: 0.2; } }
+
+        .ai-icon-svg { width: 32px; height: 32px; fill: #000; }
+
+        /* CHAT WINDOW */
+        #chat-window {
+            position: fixed; 
+            bottom: 100px; 
+            right: 25px; 
+            width: 360px; 
+            height: 550px;
+            background: #111; 
+            border: 1px solid #333; 
+            border-radius: 20px;
+            display: none; 
+            flex-direction: column; 
+            box-shadow: 0px 15px 50px rgba(0,0,0,0.8);
+            z-index: 999999 !important; 
+            overflow: hidden;
+        }
+
+        #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { display: flex; align-items: center; gap: 10px; }
+        .header-text b { display: block; font-size: 14px; color: #fff; }
+        .header-text span { font-size: 11px; color: #00ff88; }
+        
+        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
+        
+        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+        .ai-row { align-self: flex-start; }
+        .user-row { align-self: flex-end; flex-direction: row-reverse; }
+        
+        .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ai-avatar { background: #fff; }
+        .user-avatar { background: #333; font-size: 12px; color: #aaa; border: 1px solid #444; }
+        
+        .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
+        .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
+        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+        
+        .lead-captured { background: rgba(0, 255, 136, 0.05); border: 1px dashed #00ff88; color: #00ff88; font-size: 12px; padding: 10px; text-align: center; border-radius: 10px; margin: 10px 0; }
+
+        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
+        input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
+        .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    </style>
 </head>
 <body>
 
+<div id="chat-bubble" onclick="toggleChat()">
+    <svg class="ai-icon-svg" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+</div>
+
+<div id="chat-window">
+    <div id="chat-header">
+        <div class="header-title">
+            <div class="avatar ai-avatar">
+                <svg style="width:16px; height:16px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+            </div>
+            <div class="header-text">
+                <b>AI Assistant</b>
+                <span>● Online</span>
+            </div>
+        </div>
+        <span style="cursor:pointer; color:#666;" onclick="toggleChat()">✕</span>
+    </div>
+    <div id="response-container">
+        <div class="message-row ai-row">
+            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
+            <div class="msg-bubble ai-msg">Hi! How can I help you today? Please let me know your <b>Name</b> and the <b>Service</b> you need.</div>
+        </div>
+    </div>
+    <div class="input-area">
+        <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
+        <button class="send-btn" onclick="send()">Send</button>
+    </div>
+</div>
+
 <script>
-(function() {
-    // 1. Create the Styles in a protected tag
-    const style = document.createElement('style');
-    style.innerHTML = `
-        #ai-master-container { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        
-        /* THE BUBBLE */
-        .floating-ai-btn {
-            position: fixed !important; bottom: 20px !important; right: 20px !important;
-            width: 60px !important; height: 60px !important;
-            background: #ffffff !important; border-radius: 50% !important;
-            display: flex !important; align-items: center !important; justify-content: center !important;
-            cursor: pointer !important; z-index: 2147483647 !important;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
-        
-        /* MINIMAL GLOW */
-        .floating-ai-btn::after {
-            content: ''; position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
-            border-radius: 50%; background: linear-gradient(45deg, #00d2ff, #92fe9d);
-            z-index: -1; opacity: 0.3; filter: blur(8px);
-        }
+let chatHistory = [];
+let leadTracker = { isSent: false };
 
-        .floating-ai-btn:hover { transform: scale(1.05) translateY(-2px); }
+function toggleChat() {
+    const win = document.getElementById('chat-window');
+    win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+}
 
-        /* THE CHAT WINDOW */
-        .ai-chat-card {
-            position: fixed !important; bottom: 90px !important; right: 20px !important;
-            width: 350px !important; height: 500px !important;
-            background: #000000 !important; border: 1px solid #333 !important;
-            border-radius: 20px !important; z-index: 2147483647 !important;
-            display: none; /* Controlled by State */
-            flex-direction: column !important; overflow: hidden !important;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.6) !important;
-        }
+async function send() {
+    const input = document.getElementById("msg");
+    const container = document.getElementById("response-container");
+    const userText = input.value;
+    if (!userText) return;
 
-        .ai-card-active { display: flex !important; animation: popIn 0.3s ease-out; }
+    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
+    
+    const aiBubbleId = "ai-" + Date.now();
+    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+    
+    chatHistory.push({ role: "user", content: userText });
+    input.value = ""; 
+    container.scrollTop = container.scrollHeight;
 
-        @keyframes popIn {
-            from { opacity: 0; transform: translateY(20px) scale(0.95); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
+    try {
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: chatHistory }),
+        });
 
-        #ai-msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; background: #0a0a0a; }
-        .ai-input-wrap { padding: 15px; background: #111; display: flex; gap: 8px; border-top: 1px solid #222; }
-        .ai-input-wrap input { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #fff; padding: 10px; border-radius: 10px; outline: none; }
-        .ai-send-btn { background: #fff; border: none; padding: 0 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        
-        .bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; max-width: 80%; line-height: 1.4; }
-        .ai-bubble { background: #222; color: #fff; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .user-bubble { background: #fff; color: #000; align-self: flex-end; border-bottom-right-radius: 2px; }
-    `;
-    document.head.appendChild(style);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        const aiBubble = document.getElementById(aiBubbleId);
+        aiBubble.innerHTML = ""; 
 
-    // 2. Build the HTML Structure
-    const container = document.createElement('div');
-    container.id = "ai-master-container";
-    container.innerHTML = `
-        <div class="floating-ai-btn" id="ai-toggle">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div class="ai-chat-card" id="ai-window">
-            <div style="padding:15px; background:#111; border-bottom:1px solid #222; font-weight:bold; color:white; display:flex; justify-content:space-between;">
-                <span>Assistant</span>
-                <span id="ai-close" style="cursor:pointer; color:#666;">✕</span>
-            </div>
-            <div id="ai-msg-area">
-                <div class="bubble ai-bubble">Hi! I'm here to help. What's your <b>Name</b> and the <b>Service</b> you're looking for?</div>
-            </div>
-            <div class="ai-input-wrap">
-                <input type="text" id="ai-input-field" placeholder="Message...">
-                <button class="ai-send-btn" id="ai-send-trigger">Send</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(container);
-
-    // 3. The Logic
-    const toggle = document.getElementById('ai-toggle');
-    const win = document.getElementById('ai-window');
-    const close = document.getElementById('ai-close');
-    const input = document.getElementById('ai-input-field');
-    const sendBtn = document.getElementById('ai-send-trigger');
-    const msgArea = document.getElementById('ai-msg-area');
-
-    let history = [];
-
-    // TOGGLE WINDOW
-    const handleToggle = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        win.classList.toggle('ai-card-active');
-    };
-
-    toggle.addEventListener('click', handleToggle);
-    close.addEventListener('click', () => win.classList.remove('ai-card-active'));
-
-    // SEND MESSAGE
-    async function sendMessage() {
-        const text = input.value.trim();
-        if(!text) return;
-
-        // Add User Message
-        msgArea.innerHTML += `<div class="bubble user-bubble">${text}</div>`;
-        history.push({role: "user", content: text});
-        input.value = "";
-        msgArea.scrollTop = msgArea.scrollHeight;
-
-        // AI Placeholder
-        const aiId = "ai-" + Date.now();
-        msgArea.innerHTML += `<div class="bubble ai-bubble" id="${aiId}">...</div>`;
-
-        try {
-            const res = await fetch("/api/chat", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({messages: history})
-            });
-
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            const aiBubble = document.getElementById(aiId);
-            aiBubble.innerText = "";
-            let fullText = "";
-
-            while (true) {
-                const {done, value} = await reader.read();
-                if (done) break;
-                const chunk = decoder.decode(value);
-                const lines = chunk.split("\n");
-                for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        const dataStr = line.replace("data: ", "").trim();
-                        if (dataStr === "[DONE]") break;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            const content = data.choices[0].delta.content || "";
-                            aiBubble.innerText += content;
-                            fullText += content;
-                            msgArea.scrollTop = msgArea.scrollHeight;
-                        } catch (e) {}
-                    }
+        let fullAIResponse = "";
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const dataStr = line.replace("data: ", "").trim();
+                    if (dataStr === "[DONE]") break;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        const content = data.choices[0].delta.content || "";
+                        aiBubble.innerHTML += content;
+                        fullAIResponse += content;
+                        container.scrollTop = container.scrollHeight;
+                    } catch (e) {}
                 }
             }
-            history.push({role: "assistant", content: fullText});
-        } catch (e) {
-            document.getElementById(aiId).innerText = "Sorry, I'm having trouble connecting.";
         }
+        chatHistory.push({ role: "assistant", content: fullAIResponse });
+        extractAndSendLead(userText, fullAIResponse, container);
+    } catch (err) {
+        document.getElementById(aiBubbleId).innerText = "Error. Please refresh.";
     }
+}
 
-    sendBtn.addEventListener('click', sendMessage);
-    input.addEventListener('keypress', (e) => { if(e.key === 'Enter') sendMessage(); });
+function extractAndSendLead(userText, fullAIResponse, container) {
+    const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
+    const timeRegex = /((\d{1,2}(:\d{2})?)\s?(am|pm|o'clock))|((at|around)\s\d{1,2})|(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
+    
+    const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
+    const foundPhone = combinedLog.match(phoneRegex);
+    const foundTime = combinedLog.match(timeRegex);
 
-})();
+    if (foundPhone && foundTime && !leadTracker.isSent) {
+        leadTracker.isSent = true; 
+        const userMessages = chatHistory.filter(m => m.role === "user");
+        const firstUserMsg = userMessages[0]?.content || "";
+        let namePart = firstUserMsg.replace(/(my name is|i am|i'm|it's|this is|hey|hi|hello)\s+/gi, "").trim();
+        let rawName = namePart.split(' ')[0].replace(/[^a-zA-Z]/g, ""); 
+        const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Lead";
+
+        fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
+            method: "POST",
+            body: JSON.stringify({ 
+                customer_name: finalName, 
+                phone: foundPhone[0],
+                booking_time: foundTime[0], 
+                requested_service: "New Request",
+                full_transcript: container.innerText
+            })
+        }).then(() => {
+            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent!</div>`;
+            container.scrollTop = container.scrollHeight;
+        });
+    }
+}
 </script>
-
 </body>
 </html>
