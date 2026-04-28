@@ -5,15 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Business Assistant</title>
     <style>
-        /* RESET & BASE */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Roboto, sans-serif; }
+        /* RESET */
+        #ai-widget-root * { margin: 0; padding: 0; box-sizing: border-box; }
 
-        /* THE BUBBLE - Forced to the absolute front */
+        /* ROOT CONTAINER - The "Master" Layer */
+        #ai-widget-root {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none; /* Let clicks pass through to the site behind it */
+            z-index: 2147483647 !important;
+        }
+
+        /* BUBBLE - Enable pointer events just for this button */
         #chat-bubble {
             position: fixed !important;
-            bottom: 30px !important;
-            right: 30px !important;
+            bottom: 25px !important;
+            right: 25px !important;
             width: 65px;
             height: 65px;
             background: #ffffff;
@@ -22,12 +32,12 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            z-index: 2147483647 !important; /* Highest possible 32-bit integer */
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-            transition: transform 0.2s ease;
+            pointer-events: auto; /* Re-enable clicks */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        #chat-bubble:hover { transform: scale(1.08); }
+        #chat-bubble:active { transform: scale(0.9); }
 
         /* MINIMAL GLOW */
         #chat-bubble::after {
@@ -38,162 +48,113 @@
             border-radius: 50%;
             background: linear-gradient(45deg, #ff00ff, #00ffff);
             z-index: -1;
-            filter: blur(10px);
-            opacity: 0.25;
+            filter: blur(8px);
+            opacity: 0.2;
         }
 
-        .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
-
-        /* THE WINDOW - Forced to the absolute front */
+        /* CHAT WINDOW */
         #chat-window {
             position: fixed !important;
-            bottom: 110px !important;
-            right: 30px !important;
-            width: 380px;
+            bottom: 100px !important;
+            right: 25px !important;
+            width: 360px;
             max-width: 90vw;
-            height: 600px;
+            height: 580px;
             max-height: 80vh;
-            background: #111111;
-            border: 1px solid #333333;
-            border-radius: 24px;
-            display: none; /* Controlled by JS */
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 20px;
+            display: none; /* Flex via JS */
             flex-direction: column;
-            z-index: 2147483647 !important;
+            pointer-events: auto; /* Re-enable clicks */
+            box-shadow: 0 15px 50px rgba(0,0,0,0.8);
             overflow: hidden;
-            box-shadow: 0 12px 48px rgba(0,0,0,0.8);
         }
 
-        /* HEADER */
-        #chat-header {
-            padding: 20px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header-info { display: flex; align-items: center; gap: 12px; }
-        .dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; }
-        .close-btn { cursor: pointer; color: #888; font-size: 20px; }
-
-        /* MESSAGES */
-        #response-container {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            background: #0a0a0a;
-        }
-
+        /* UI ELEMENTS */
+        #chat-header { padding: 15px; background: #1a1a1a; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; }
+        
         .message-row { display: flex; width: 100%; }
         .ai-row { justify-content: flex-start; }
         .user-row { justify-content: flex-end; }
 
-        .msg-bubble {
-            max-width: 80%;
-            padding: 12px 16px;
-            font-size: 14px;
-            line-height: 1.5;
-            border-radius: 18px;
-        }
+        .msg-bubble { max-width: 85%; padding: 10px 14px; font-size: 14px; border-radius: 15px; line-height: 1.4; }
+        .ai-msg { background: #222; color: #fff; border-bottom-left-radius: 2px; }
+        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 2px; }
 
-        .ai-msg { background: #222; color: #fff; border-bottom-left-radius: 4px; border: 1px solid #333; }
-        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
-
-        /* INPUT */
-        .input-area {
-            padding: 20px;
-            background: #111;
-            border-top: 1px solid #333;
-            display: flex;
-            gap: 10px;
-        }
-
-        input {
-            flex: 1;
-            background: #1a1a1a;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 12px;
-            border-radius: 12px;
-            outline: none;
-        }
-
-        .send-btn {
-            background: #fff;
-            color: #000;
-            border: none;
-            padding: 0 20px;
-            border-radius: 12px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .lead-status {
-            text-align: center;
-            font-size: 12px;
-            color: #00ff88;
-            background: rgba(0, 255, 136, 0.1);
-            padding: 8px;
-            margin-top: 10px;
-            border-radius: 8px;
-        }
+        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
+        input { flex: 1; background: #1a1a1a; border: 1px solid #444; color: #fff; padding: 10px; border-radius: 10px; outline: none; }
+        .send-btn { background: #fff; color: #000; border: none; padding: 0 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        .lead-alert { background: rgba(0, 255, 136, 0.1); border: 1px dashed #00ff88; color: #00ff88; padding: 10px; text-align: center; border-radius: 10px; font-size: 12px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
-<div id="chat-bubble" onclick="toggleChat()">
-    <svg class="ai-icon-svg" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-</div>
+<div id="ai-widget-root">
+    
+    <div id="chat-bubble">
+        <svg style="width:30px; height:30px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+    </div>
 
-<div id="chat-window">
-    <div id="chat-header">
-        <div class="header-info">
-            <div class="dot"></div>
-            <b>Assistant</b>
+    <div id="chat-window">
+        <div id="chat-header">
+            <span style="font-size:14px; font-weight:bold;">Assistant</span>
+            <span id="close-chat" style="cursor:pointer; color:#888;">✕</span>
         </div>
-        <span class="close-btn" onclick="toggleChat()">✕</span>
-    </div>
-    <div id="response-container">
-        <div class="message-row ai-row">
-            <div class="msg-bubble ai-msg">Hi! I can help you book an appointment. What's your <b>Name</b> and what <b>Service</b> do you need?</div>
+        <div id="response-container">
+            <div class="message-row ai-row">
+                <div class="msg-bubble ai-msg">Hello! To get started, please tell me your <b>Name</b> and the <b>Service</b> you're interested in.</div>
+            </div>
+        </div>
+        <div class="input-area">
+            <input id="msg-input" placeholder="Type a message..." />
+            <button id="send-btn" class="send-btn">Send</button>
         </div>
     </div>
-    <div class="input-area">
-        <input id="msg" placeholder="Type here..." onkeypress="if(event.key === 'Enter') send()" />
-        <button class="send-btn" onclick="send()">Send</button>
-    </div>
+
 </div>
 
 <script>
+// VARIABLES
 let chatHistory = [];
 let leadSent = false;
 
-function toggleChat() {
-    const win = document.getElementById('chat-window');
-    // Force direct style manipulation to bypass any CSS conflicts
-    if (win.style.display === 'flex') {
-        win.style.display = 'none';
+// ELEMENTS
+const bubble = document.getElementById('chat-bubble');
+const windowEl = document.getElementById('chat-window');
+const closeBtn = document.getElementById('close-chat');
+const sendBtn = document.getElementById('send-btn');
+const input = document.getElementById('msg-input');
+const container = document.getElementById('response-container');
+
+// TOGGLE LOGIC (Forced)
+function toggle() {
+    if (windowEl.style.display === 'flex') {
+        windowEl.style.display = 'none';
     } else {
-        win.style.display = 'flex';
+        windowEl.style.display = 'flex';
     }
 }
 
-async function send() {
-    const input = document.getElementById("msg");
-    const container = document.getElementById("response-container");
-    const val = input.value.trim();
-    if (!val) return;
+// BIND EVENTS VIA JS (Safer than HTML attributes)
+bubble.addEventListener('click', toggle);
+closeBtn.addEventListener('click', toggle);
+sendBtn.addEventListener('click', handleSend);
+input.addEventListener('keypress', (e) => { if(e.key === 'Enter') handleSend(); });
 
-    // Display User Message
-    container.innerHTML += `<div class="message-row user-row"><div class="msg-bubble user-msg">${val}</div></div>`;
-    chatHistory.push({ role: "user", content: val });
+async function handleSend() {
+    const text = input.value.trim();
+    if (!text) return;
+
+    // User Message
+    container.innerHTML += `<div class="message-row user-row"><div class="msg-bubble user-msg">${text}</div></div>`;
+    chatHistory.push({ role: "user", content: text });
     input.value = "";
     container.scrollTop = container.scrollHeight;
 
-    // Prepare AI Placeholder
+    // AI Placeholder
     const aiId = "ai-" + Date.now();
     container.innerHTML += `<div class="message-row ai-row"><div id="${aiId}" class="msg-bubble ai-msg">...</div></div>`;
 
@@ -230,31 +191,32 @@ async function send() {
             }
         }
         chatHistory.push({ role: "assistant", content: fullText });
-        checkLead(val, fullText, container);
+        processLead(text, fullText);
     } catch (e) {
-        document.getElementById(aiId).innerText = "Error. Please refresh.";
+        document.getElementById(aiId).innerText = "Connection error.";
     }
 }
 
-function checkLead(u, a, container) {
+function processLead(u, a) {
     const phoneRx = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const timeRx = /(am|pm|tomorrow|today|o'clock|\d{1,2}:\d{2})/i;
     
     if (phoneRx.test(u + a) && timeRx.test(u + a) && !leadSent) {
         leadSent = true;
-        const firstName = chatHistory.find(m => m.role === "user").content
-            .replace(/(my name is|i'm|i am|this is|hi|hey)\s+/gi, "")
+        const rawName = chatHistory.find(m => m.role === "user").content
+            .replace(/(my name is|i'm|i am|this is|hi|hey|hello)\s+/gi, "")
             .split(' ')[0].replace(/[^a-zA-Z]/g, "");
+        const cleanName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Lead";
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
             body: JSON.stringify({
-                customer_name: firstName || "New Lead",
+                customer_name: cleanName,
                 phone: (u + a).match(phoneRx)[0],
                 transcript: container.innerText
             })
         }).then(() => {
-            container.innerHTML += `<div class="lead-status">📅 Booking details sent to owner!</div>`;
+            container.innerHTML += `<div class="lead-alert">📅 Booking info sent!</div>`;
             container.scrollTop = container.scrollHeight;
         });
     }
