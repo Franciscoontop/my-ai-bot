@@ -29,33 +29,43 @@
 
         /* Chat Window */
         #chat-window {
-            position: fixed; bottom: 110px; right: 25px; width: 350px; height: 500px;
+            position: fixed; bottom: 110px; right: 25px; width: 360px; height: 550px;
             background: #111; border: 1px solid #333; border-radius: 20px;
             display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
-            z-index: 1000; overflow: hidden;
+            z-index: 1000; overflow: hidden; border: 1px solid #444;
         }
+
+        /* Specialized Header per your Pitch */
+        #chat-header { 
+            background: #1a1a1a; 
+            padding: 15px; 
+            border-bottom: 1px solid #333; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        
+        .header-title { display: flex; align-items: center; gap: 10px; }
+        .header-text { font-size: 14px; line-height: 1.2; }
+        .header-text b { display: block; font-size: 15px; color: #fff; }
+        .header-text span { font-size: 11px; color: #00ff88; } /* "Online 24/7" badge */
 
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
 
-        /* --- MESSAGE ROW LOGIC --- */
+        /* Message Rows */
         .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
         .ai-row { align-self: flex-start; flex-direction: row; }
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
 
-        /* Avatars */
         .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 12px; font-weight: bold; color: #aaa; border: 1px solid #444; }
-        
         .mini-icon { width: 16px; height: 16px; fill: #000; }
 
-        /* Bubbles */
         .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
 
-        /* Input Area */
-        #chat-header { background: #1a1a1a; padding: 18px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
         .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
@@ -68,17 +78,28 @@
 </div>
 
 <div id="chat-window">
-    <div id="chat-header"><span>AI Assistant</span><span style="cursor:pointer" onclick="toggleChat()">✕</span></div>
+    <div id="chat-header">
+        <div class="header-title">
+            <div class="avatar ai-avatar">
+                <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+            </div>
+            <div class="header-text">
+                <b>AI Business Assistant</b>
+                <span>● Online 24/7</span>
+            </div>
+        </div>
+        <span style="cursor:pointer; color:#888;" onclick="toggleChat()">✕</span>
+    </div>
     <div id="response-container">
         <div class="message-row ai-row">
             <div class="avatar ai-avatar">
                 <svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
             </div>
-            <div class="msg-bubble ai-msg">Hi! How can I help you?</div>
+            <div class="msg-bubble ai-msg">Welcome! I'm your dedicated business expert. I know our services, pricing, and availability. How can I help you today?</div>
         </div>
     </div>
     <div class="input-area">
-        <input id="msg" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') send()" />
+        <input id="msg" placeholder="Ask about services or hours..." onkeypress="if(event.key === 'Enter') send()" />
         <button class="send-btn" onclick="send()">Send</button>
     </div>
 </div>
@@ -95,7 +116,6 @@ async function send() {
   const message = input.value;
   if (!message) return;
 
-  // Add User Row
   container.innerHTML += `
     <div class="message-row user-row">
         <div class="avatar user-avatar">U</div>
@@ -103,7 +123,6 @@ async function send() {
     </div>`;
   
   const aiBubbleId = "ai-" + Date.now();
-  // Add AI Row Placeholder
   container.innerHTML += `
     <div class="message-row ai-row">
         <div class="avatar ai-avatar">
@@ -116,10 +135,16 @@ async function send() {
   container.scrollTop = container.scrollHeight;
 
   try {
+    // Note: To truly train it on your business, 
+    // you would include a "system" message in your back-end /api/chat call.
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ 
+          message,
+          // We pass context so the AI knows its role
+          context: "You are a specialized Business Assistant. You know all services, prices, hours, and promos. You are professional, helpful, and available 24/7."
+      }),
     });
 
     const reader = res.body.getReader();
@@ -145,7 +170,7 @@ async function send() {
       }
     }
   } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Error: Offline.";
+    document.getElementById(aiBubbleId).innerText = "I'm having trouble connecting. Please try again.";
   }
 }
 </script>
