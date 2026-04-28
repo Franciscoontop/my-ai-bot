@@ -112,7 +112,8 @@
 </div>
 
 <script>
-let leadData = { name: false, need: false, contact: false };
+// Tracker to ensure we send the lead only once per chat session
+let leadTracker = { isSent: false };
 
 function toggleChat() {
     const win = document.getElementById('chat-window');
@@ -125,10 +126,12 @@ async function send() {
   const message = input.value;
   if (!message) return;
 
+  // Add User Row
   container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${message}</div></div>`;
   
   const aiBubbleId = "ai-" + Date.now();
-  container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+  // Add AI Row
+  container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">Thinking...</div></div>`;
   
   input.value = ""; 
   container.scrollTop = container.scrollHeight;
@@ -139,8 +142,7 @@ async function send() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ 
           message,
-          // CRITICAL SYSTEM INSTRUCTION: Turn conversation into leads
-          system_prompt: "You are an expert sales assistant. Your goal is to be helpful BUT you must ensure you collect the customer's NAME, their SPECIFIC NEED, and their BEST TIME TO BE REACHED. If they haven't provided these 3 things, politely ask for them while answering their questions."
+          system_prompt: "You are an expert sales assistant. Your goal is to collect the customer's NAME, their SPECIFIC NEED, and their BEST CONTACT NUMBER. If they haven't provided these 3 things, politely ask for them while answering their questions. Once you have a phone number, tell them the owner will reach out shortly."
       }),
     });
 
@@ -170,17 +172,32 @@ async function send() {
       }
     }
 
-    // TRIGGER LEAD NOTIFICATION (Simulated Check)
-    // In a real app, you'd use the AI to flag if a lead was captured.
-    if (fullResponse.toLowerCase().includes("reach") || fullResponse.toLowerCase().includes("contact")) {
-        setTimeout(() => {
-            container.innerHTML += `<div class="lead-captured">✓ Lead qualified. Information sent to the owner.</div>`;
+    // --- ZAPIER LEAD INTEGRATION ---
+    // Regex checks for standard phone number patterns
+    const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
+    const foundPhone = (message + fullResponse).match(phoneRegex);
+
+    if (foundPhone && !leadTracker.isSent) {
+        leadTracker.isSent = true; 
+        
+        // Push full data to Zapier
+        fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
+            method: "POST",
+            body: JSON.stringify({ 
+                lead_status: "Qualified",
+                phone: foundPhone[0],
+                transcript: container.innerText, // Sends the whole conversation for context
+                captured_at: new Date().toLocaleString()
+            })
+        }).then(() => {
+            // Visual confirmation for the user
+            container.innerHTML += `<div class="lead-captured">✓ Information received. We will contact you shortly.</div>`;
             container.scrollTop = container.scrollHeight;
-        }, 1000);
+        });
     }
 
   } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Disconnected.";
+    document.getElementById(aiBubbleId).innerText = "Disconnected. Please refresh.";
   }
 }
 </script>
