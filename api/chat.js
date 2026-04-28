@@ -3,8 +3,8 @@ export const config = {
 };
 
 export default async function handler(req) {
-  // 1. Get the message from your website
-  const { message } = await req.json();
+  // 1. Get the FULL history from your website, not just the last message
+  const { messages } = await req.json();
 
   // 2. Talk to NVIDIA
   const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -26,20 +26,24 @@ export default async function handler(req) {
           - LOCATION: 123 Business Street, Downtown.
           - PROMO: Mention 'FIRSTTIME' for 15% off your first visit.
 
+          RULES:
+          1. Check the conversation history before asking a question.
+          2. Once you have the user's Name, Service, and Phone Number, STOP asking for them. 
+          3. Instead of re-asking, confirm the details (e.g., "Got it, Bob! I have you down for a Fade at 3pm") and tell them the owner will reach out shortly.
+          
           YOUR GOALS:
           1. Answer questions clearly using the Knowledge Base.
-          2. Be a salesperson: If they ask about a price, tell them why it's worth it.
-          3. COLLECT LEADS: This is your #1 priority. If someone seems interested, ask for their Name and Phone Number.
+          2. COLLECT LEADS: Ask for Name and Phone Number if they seem interested.
           
-          TONE: Professional, energetic, and helpful. Use emojis like ✂️ or 📅.`
+          TONE: Professional, energetic, and helpful. Use emojis.`
         },
-        { role: "user", content: message }
+        ...messages // This spreads the history so the AI remembers what was already said
       ],
       stream: true,
     }),
   });
 
-  // 3. Return the AI's response to the browser
+  // 3. Return the AI's response
   return new Response(response.body, {
     headers: {
       'Content-Type': 'text/event-stream',
