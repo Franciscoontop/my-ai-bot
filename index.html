@@ -18,7 +18,7 @@
         #chat-bubble::after {
             content: ''; position: absolute; width: 110%; height: 110%; border-radius: 50%;
             background: linear-gradient(45deg, #ff00ff, #00ffff, #ff00ff, #00ffff);
-            background-size: 400%; z-1; filter: blur(10px); opacity: 0.3;
+            background-size: 400%; z-index: -1; filter: blur(10px); opacity: 0.3;
             animation: glow-rotate 8s linear infinite;
         }
 
@@ -170,7 +170,6 @@ async function send() {
 
     // --- ENHANCED LOGIC FOR NAME AND ACCURATE TIME ---
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
-    // This improved time regex grabs numbers + am/pm (e.g., 3pm, 12:30)
     const timeRegex = /((\d{1,2}(:\d{2})?)\s?(am|pm|o'clock))|((at|around)\s\d{1,2})|(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
     
     const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
@@ -180,11 +179,17 @@ async function send() {
     if (foundPhone && foundTime && !leadTracker.isSent) {
         leadTracker.isSent = true; 
         
-        // Fix Name: Filter only USER messages so we don't grab the AI's "Hi"
+        // --- FINAL NAME FIX ---
         const userMessages = chatHistory.filter(m => m.role === "user");
         const firstUserMsg = userMessages[0]?.content || "";
-        // Clean the string to pull out just the first name
-        const nameClean = firstUserMsg.replace(/(my name is|i am|i'm|this is|hey|hi)\s+/i, "").split(' ')[0];
+        
+        // Remove common intro words to find the name
+        let namePart = firstUserMsg.replace(/(my name is|i am|i'm|it's|this is|hey|hi|hello)\s+/gi, "").trim();
+        // Split by space and take the first word (the actual name)
+        let rawName = namePart.split(' ')[0].replace(/[^a-zA-Z]/g, ""); 
+        
+        // Capitalize properly (e.g., bob -> Bob)
+        const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Customer";
         
         // Find Service: Look for keywords in user messages
         const serviceMsg = userMessages.find(m => 
@@ -197,7 +202,7 @@ async function send() {
             method: "POST",
             body: JSON.stringify({ 
                 type: "NEW BOOKING REQUEST",
-                customer_name: nameClean, 
+                customer_name: finalName, 
                 phone: foundPhone[0],
                 booking_time: foundTime[0], 
                 requested_service: serviceMsg,
