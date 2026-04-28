@@ -6,7 +6,6 @@
     <style>
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
 
-        /* WIDGET WRAPPER */
         #ai-widget-wrapper {
             position: fixed;
             top: 0;
@@ -17,68 +16,93 @@
             z-index: 2147483647 !important;
         }
 
-        /* DISCOUNT MODAL (Middle of screen) */
+        /* DISCOUNT MODAL - Fade Animation & No Glow */
         #exit-modal {
             position: fixed;
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -50%) scale(0.9);
+            transform: translate(-50%, -50%);
             width: 90%;
             max-width: 400px;
             background: #111;
-            border: 2px solid #00ff88;
+            border: 1px solid #333; /* Clean border, no glow */
             border-radius: 20px;
             padding: 30px;
             text-align: center;
-            display: none; /* Hidden by default */
+            display: none; 
             flex-direction: column;
             align-items: center;
-            box-shadow: 0px 0px 50px rgba(0, 255, 136, 0.3);
+            box-shadow: 0px 20px 40px rgba(0,0,0,0.8);
             pointer-events: auto;
             z-index: 2147483648;
-            transition: all 0.3s ease;
+            opacity: 0;
+            transition: opacity 0.4s ease, transform 0.4s ease;
         }
 
-        #exit-modal.active { display: flex; transform: translate(-50%, -50%) scale(1); }
+        #exit-modal.active {
+            display: flex;
+            opacity: 1;
+        }
 
-        .modal-offer { font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #00ff88; }
-        .modal-text { font-size: 16px; margin-bottom: 20px; color: #ccc; }
-        .promo-code { background: #222; border: 1px dashed #00ff88; padding: 10px 20px; font-size: 20px; font-weight: bold; border-radius: 10px; margin-bottom: 20px; letter-spacing: 2px; }
-        
-        .close-modal-btn { background: #00ff88; color: #000; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        .close-modal-btn:hover { background: #fff; transform: scale(1.05); }
-
-        /* CHAT BUBBLE & WINDOW (Kept for your assistant) */
+        /* AI BUBBLE - Glow & Floating Animation */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; pointer-events: auto; box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+            cursor: pointer; pointer-events: auto; 
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+            animation: float 3s ease-in-out infinite; /* Floating animation */
+            transition: transform 0.3s ease;
         }
+
+        /* The Glow Effect */
+        #chat-bubble::after {
+            content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            z-index: -1; filter: blur(12px); opacity: 0.3;
+            transition: opacity 0.3s ease;
+        }
+
+        #chat-bubble:hover { transform: scale(1.1); }
+        #chat-bubble:hover::after { opacity: 0.6; }
+
+        /* Icon Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
         .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
 
+        /* MODAL STYLES */
+        .modal-offer { font-size: 24px; font-weight: bold; margin-bottom: 10px; color: #fff; }
+        .modal-text { font-size: 16px; margin-bottom: 20px; color: #ccc; }
+        .promo-code { background: #222; border: 1px dashed #fff; padding: 10px 20px; font-size: 20px; font-weight: bold; border-radius: 10px; margin-bottom: 20px; }
+        .close-modal-btn { background: #fff; color: #000; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: bold; }
+
+        /* CHAT WINDOW (Simplified) */
         #chat-window {
             position: absolute; bottom: 95px; right: 25px; width: 360px; height: 500px;
             background: #111; border: 1px solid #333; border-radius: 20px;
             display: none; flex-direction: column; pointer-events: auto; overflow: hidden;
         }
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
-        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #050505; }
-        .message-row { display: flex; max-width: 85%; margin-bottom: 5px; }
-        .ai-msg { background: #222; padding: 10px; border-radius: 10px; font-size: 14px; }
+        #response-container { flex: 1; padding: 15px; overflow-y: auto; background: #050505; display: flex; flex-direction: column; gap: 10px; }
+        .ai-msg { background: #222; padding: 10px; border-radius: 10px; font-size: 14px; align-self: flex-start; }
         .user-msg { background: #fff; color: #000; padding: 10px; border-radius: 10px; align-self: flex-end; font-size: 14px; }
         .input-area { padding: 15px; background: #111; display: flex; gap: 5px; }
-        input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; }
+        input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
     </style>
 </head>
 <body>
 
 <div id="ai-widget-wrapper">
     <div id="exit-modal">
-        <div class="modal-offer">Wait! Don't go yet! 🎁</div>
-        <div class="modal-text">Get <b>20% OFF</b> your next order when you use this code at checkout:</div>
+        <div class="modal-offer">Wait! Before you go... 🎁</div>
+        <div class="modal-text">Take <b>20% OFF</b> your next order!</div>
         <div class="promo-code">NEXT20</div>
-        <button class="close-modal-btn" onclick="closeModal()">Claim Offer</button>
-        <p style="font-size: 10px; color: #666; margin-top: 15px; cursor: pointer;" onclick="closeModal()">No thanks, I'll pay full price</p>
+        <button class="close-modal-btn" onclick="closeModal()">Copy Code & Shop</button>
+        <p style="font-size: 11px; color: #666; margin-top: 15px; cursor: pointer;" onclick="closeModal()">Dismiss</p>
     </div>
 
     <div id="chat-bubble" onclick="toggleChat()">
@@ -95,24 +119,29 @@
         </div>
         <div class="input-area">
             <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
-            <button onclick="send()" style="background:#fff; border:none; padding:10px; border-radius:10px; cursor:pointer;">Send</button>
+            <button onclick="send()" style="background:#fff; border:none; padding:10px; border-radius:10px; cursor:pointer; font-weight:bold;">Send</button>
         </div>
     </div>
 </div>
 
 <script>
 let hasPopped = false;
+let chatHistory = [];
 
 // MODAL CONTROLS
 function closeModal() {
-    document.getElementById('exit-modal').classList.remove('active');
+    const modal = document.getElementById('exit-modal');
+    modal.style.opacity = "0";
+    setTimeout(() => { modal.style.display = 'none'; }, 400); // Wait for fade out
 }
 
 // EXIT INTENT TRIGGER
 document.addEventListener('mousemove', function(e) {
-    // If mouse goes near top of screen (URL bar)
     if (e.clientY < 15 && !hasPopped) {
-        document.getElementById('exit-modal').classList.add('active');
+        const modal = document.getElementById('exit-modal');
+        modal.style.display = 'flex';
+        // Small timeout to allow display:flex to register before opacity kicks in
+        setTimeout(() => { modal.classList.add('active'); }, 10);
         hasPopped = true;
     }
 });
@@ -123,17 +152,19 @@ function toggleChat() {
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
 
-// AI SEND LOGIC (Simplified for demo)
+// AI SEND LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
-    if (!input.value.trim()) return;
+    const text = input.value.trim();
+    if (!text) return;
 
-    container.innerHTML += `<div class="user-msg">${input.value}</div>`;
+    container.innerHTML += `<div class="user-msg">${text}</div>`;
+    chatHistory.push({ role: "user", content: text });
     input.value = "";
     container.scrollTop = container.scrollHeight;
-    
-    // You can re-add your fetch("/api/chat") logic here exactly like before!
+
+    // Here you would add your fetch("/api/chat") logic...
 }
 </script>
 </body>
