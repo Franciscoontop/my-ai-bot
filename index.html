@@ -4,26 +4,74 @@
     <title>AI Business Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
 
-        /* PERMANENT WINDOW (No more toggle logic) */
-        #chat-window {
-            position: fixed; 
+        #ai-widget-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none; 
+            z-index: 2147483647 !important;
+        }
+
+        /* BUBBLE */
+        #chat-bubble {
+            position: absolute; 
             bottom: 25px; 
+            right: 25px; 
+            width: 60px; 
+            height: 60px;
+            background: #fff; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center;
+            justify-content: center; 
+            cursor: pointer; 
+            pointer-events: auto;
+            transition: transform 0.2s ease;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+        }
+
+        /* MINIMAL GLOW - Clean and tight */
+        #chat-bubble::after {
+            content: ''; 
+            position: absolute; 
+            width: 100%; height: 100%; 
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            z-index: -1; 
+            filter: blur(10px);
+            opacity: 0.15;
+        }
+
+        #chat-bubble:hover { transform: scale(1.1); }
+
+        /* CHAT WINDOW */
+        #chat-window {
+            position: absolute; 
+            bottom: 95px; 
             right: 25px; 
             width: 360px; 
             height: 550px;
             background: #111; 
             border: 1px solid #333; 
             border-radius: 20px;
-            display: flex; /* Always visible */
+            display: none; 
             flex-direction: column; 
-            box-shadow: 0px 10px 40px rgba(0,0,0,0.8);
-            z-index: 2147483647;
+            pointer-events: auto;
+            box-shadow: 0px 20px 60px rgba(0,0,0,1);
             overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
         }
 
-        #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; }
         
         .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; max-width: 85%; line-height: 1.4; }
@@ -37,43 +85,74 @@
 </head>
 <body>
 
-<div id="chat-window">
-    <div id="chat-header">
-        <b>AI Booking Assistant</b>
+<div id="ai-widget-wrapper">
+    <div id="chat-bubble">
+        <svg width="28" height="28" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
     </div>
-    <div id="response-container">
-        <div class="msg-bubble ai-msg">Hi! What's your <b>Name</b> and the <b>Service</b> you're looking for?</div>
-    </div>
-    <div class="input-area">
-        <input id="msg" placeholder="Type a message..." />
-        <button class="send-btn" id="send-trigger">Send</button>
+
+    <div id="chat-window">
+        <div id="chat-header">
+            <b>AI Booking Assistant</b>
+            <span style="cursor:pointer; color:#888; font-size: 20px;" id="close-chat">✕</span>
+        </div>
+        <div id="response-container">
+            <div class="msg-bubble ai-msg">Hi! What's your <b>Name</b> and the <b>Service</b> you're looking for?</div>
+        </div>
+        <div class="input-area">
+            <input id="msg" placeholder="Type a message..." />
+            <button class="send-btn" id="send-trigger">Send</button>
+        </div>
     </div>
 </div>
 
 <script>
 (function() {
-    const _input = document.getElementById('msg');
-    const _sendBtn = document.getElementById('send-trigger');
-    const _container = document.getElementById('response-container');
-    let _history = [];
+    // PROTECTED VARIABLES
+    const _ai_bubble = document.getElementById('chat-bubble');
+    const _ai_win = document.getElementById('chat-window');
+    const _ai_close = document.getElementById('close-chat');
+    const _ai_input = document.getElementById('msg');
+    const _ai_sendBtn = document.getElementById('send-trigger');
+    const _ai_container = document.getElementById('response-container');
 
-    async function _handleSend() {
-        const text = _input.value.trim();
+    let _ai_history = [];
+
+    // 1. FORCED TOGGLE LOGIC (Bypasses other scripts)
+    _ai_bubble.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _ai_win.style.display = 'flex';
+    });
+
+    _ai_close.addEventListener('click', (e) => {
+        e.stopPropagation();
+        _ai_win.style.display = 'none';
+    });
+
+    // 2. THE EDGE TRIGGER (Instant Pop on URL Bar approach)
+    document.addEventListener('mouseleave', (e) => {
+        if (e.clientY <= 0) { 
+            _ai_win.style.display = 'flex';
+        }
+    });
+
+    // 3. SEND LOGIC
+    async function _ai_handleSend() {
+        const text = _ai_input.value.trim();
         if (!text) return;
 
-        _container.innerHTML += `<div class="msg-bubble user-msg">${text}</div>`;
-        _history.push({ role: "user", content: text });
-        _input.value = ""; 
-        _container.scrollTop = _container.scrollHeight;
+        _ai_container.innerHTML += `<div class="msg-bubble user-msg">${text}</div>`;
+        _ai_history.push({ role: "user", content: text });
+        _ai_input.value = ""; 
+        _ai_container.scrollTop = _ai_container.scrollHeight;
 
         const aiId = "ai-" + Date.now();
-        _container.innerHTML += `<div id="${aiId}" class="msg-bubble ai-msg">...</div>`;
+        _ai_container.innerHTML += `<div id="${aiId}" class="msg-bubble ai-msg">...</div>`;
 
         try {
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: _history }),
+                body: JSON.stringify({ messages: _ai_history }),
             });
 
             const reader = res.body.getReader();
@@ -96,19 +175,20 @@
                             const content = data.choices[0].delta.content || "";
                             aiBubble.innerText += content;
                             fullText += content;
-                            _container.scrollTop = _container.scrollHeight;
+                            _ai_container.scrollTop = _ai_container.scrollHeight;
                         } catch (e) {}
                     }
                 }
             }
-            _history.push({ role: "assistant", content: fullText });
+            _ai_history.push({ role: "assistant", content: fullText });
         } catch (err) {
-            document.getElementById(aiId).innerText = "Error connecting to AI.";
+            document.getElementById(aiId).innerText = "Error. Please refresh.";
         }
     }
 
-    _sendBtn.addEventListener('click', _handleSend);
-    _input.addEventListener('keypress', (e) => { if(e.key === 'Enter') _ai_handleSend(); });
+    _ai_sendBtn.addEventListener('click', _ai_handleSend);
+    _ai_input.addEventListener('keypress', (e) => { if(e.key === 'Enter') _ai_handleSend(); });
+
 })();
 </script>
 </body>
