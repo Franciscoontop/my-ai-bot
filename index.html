@@ -1,94 +1,145 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Business Assistant</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: auto; min-height: 100vh; }
+        /* RESET & BASE */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Roboto, sans-serif; }
 
-        /* MINIMAL GLOW & FIXED POSITIONING */
+        /* THE BUBBLE - Forced to the absolute front */
         #chat-bubble {
-            position: fixed; 
-            bottom: 25px; 
-            right: 25px; 
-            width: 65px; 
+            position: fixed !important;
+            bottom: 30px !important;
+            right: 30px !important;
+            width: 65px;
             height: 65px;
-            background: #fff; 
-            border-radius: 50%; 
-            display: flex; 
+            background: #ffffff;
+            border-radius: 50%;
+            display: flex;
             align-items: center;
-            justify-content: center; 
-            cursor: pointer; 
-            /* Extra high z-index to ensure it beats the URL/UI borders */
-            z-index: 999999 !important; 
-            transition: transform 0.3s ease;
-            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.2);
+            justify-content: center;
+            cursor: pointer;
+            z-index: 2147483647 !important; /* Highest possible 32-bit integer */
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            transition: transform 0.2s ease;
         }
 
-        /* SUBTLE HOVER EFFECT */
-        #chat-bubble:hover {
-            transform: scale(1.05);
-        }
+        #chat-bubble:hover { transform: scale(1.08); }
 
-        /* MINIMAL AI GLOW - Tuned down for a clean look */
+        /* MINIMAL GLOW */
         #chat-bubble::after {
-            content: ''; 
-            position: absolute; 
-            width: 100%; 
-            height: 100%; 
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
             border-radius: 50%;
             background: linear-gradient(45deg, #ff00ff, #00ffff);
-            z-index: -1; 
-            filter: blur(8px); /* Reduced blur */
-            opacity: 0.3; /* Minimal transparency */
-            animation: slow-glow 10s linear infinite;
+            z-index: -1;
+            filter: blur(10px);
+            opacity: 0.25;
         }
 
-        @keyframes slow-glow { 0% { opacity: 0.2; } 50% { opacity: 0.4; } 100% { opacity: 0.2; } }
+        .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
 
-        .ai-icon-svg { width: 32px; height: 32px; fill: #000; }
-
-        /* CHAT WINDOW */
+        /* THE WINDOW - Forced to the absolute front */
         #chat-window {
-            position: fixed; 
-            bottom: 100px; 
-            right: 25px; 
-            width: 360px; 
-            height: 550px;
-            background: #111; 
-            border: 1px solid #333; 
-            border-radius: 20px;
-            display: none; 
-            flex-direction: column; 
-            box-shadow: 0px 15px 50px rgba(0,0,0,0.8);
-            z-index: 999999 !important; 
+            position: fixed !important;
+            bottom: 110px !important;
+            right: 30px !important;
+            width: 380px;
+            max-width: 90vw;
+            height: 600px;
+            max-height: 80vh;
+            background: #111111;
+            border: 1px solid #333333;
+            border-radius: 24px;
+            display: none; /* Controlled by JS */
+            flex-direction: column;
+            z-index: 2147483647 !important;
             overflow: hidden;
+            box-shadow: 0 12px 48px rgba(0,0,0,0.8);
         }
 
-        #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .header-title { display: flex; align-items: center; gap: 10px; }
-        .header-text b { display: block; font-size: 14px; color: #fff; }
-        .header-text span { font-size: 11px; color: #00ff88; }
-        
-        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
-        
-        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
-        .ai-row { align-self: flex-start; }
-        .user-row { align-self: flex-end; flex-direction: row-reverse; }
-        
-        .avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .ai-avatar { background: #fff; }
-        .user-avatar { background: #333; font-size: 12px; color: #aaa; border: 1px solid #444; }
-        
-        .msg-bubble { padding: 10px 14px; border-radius: 18px; font-size: 14px; line-height: 1.4; }
-        .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
-        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
-        
-        .lead-captured { background: rgba(0, 255, 136, 0.05); border: 1px dashed #00ff88; color: #00ff88; font-size: 12px; padding: 10px; text-align: center; border-radius: 10px; margin: 10px 0; }
+        /* HEADER */
+        #chat-header {
+            padding: 20px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header-info { display: flex; align-items: center; gap: 12px; }
+        .dot { width: 8px; height: 8px; background: #00ff88; border-radius: 50%; }
+        .close-btn { cursor: pointer; color: #888; font-size: 20px; }
 
-        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
-        input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 10px; outline: none; }
-        .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        /* MESSAGES */
+        #response-container {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #0a0a0a;
+        }
+
+        .message-row { display: flex; width: 100%; }
+        .ai-row { justify-content: flex-start; }
+        .user-row { justify-content: flex-end; }
+
+        .msg-bubble {
+            max-width: 80%;
+            padding: 12px 16px;
+            font-size: 14px;
+            line-height: 1.5;
+            border-radius: 18px;
+        }
+
+        .ai-msg { background: #222; color: #fff; border-bottom-left-radius: 4px; border: 1px solid #333; }
+        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+
+        /* INPUT */
+        .input-area {
+            padding: 20px;
+            background: #111;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            background: #1a1a1a;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            outline: none;
+        }
+
+        .send-btn {
+            background: #fff;
+            color: #000;
+            border: none;
+            padding: 0 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .lead-status {
+            text-align: center;
+            font-size: 12px;
+            color: #00ff88;
+            background: rgba(0, 255, 136, 0.1);
+            padding: 8px;
+            margin-top: 10px;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
@@ -99,52 +150,52 @@
 
 <div id="chat-window">
     <div id="chat-header">
-        <div class="header-title">
-            <div class="avatar ai-avatar">
-                <svg style="width:16px; height:16px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-            </div>
-            <div class="header-text">
-                <b>AI Assistant</b>
-                <span>● Online</span>
-            </div>
+        <div class="header-info">
+            <div class="dot"></div>
+            <b>Assistant</b>
         </div>
-        <span style="cursor:pointer; color:#666;" onclick="toggleChat()">✕</span>
+        <span class="close-btn" onclick="toggleChat()">✕</span>
     </div>
     <div id="response-container">
         <div class="message-row ai-row">
-            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
-            <div class="msg-bubble ai-msg">Hi! How can I help you today? Please let me know your <b>Name</b> and the <b>Service</b> you need.</div>
+            <div class="msg-bubble ai-msg">Hi! I can help you book an appointment. What's your <b>Name</b> and what <b>Service</b> do you need?</div>
         </div>
     </div>
     <div class="input-area">
-        <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
+        <input id="msg" placeholder="Type here..." onkeypress="if(event.key === 'Enter') send()" />
         <button class="send-btn" onclick="send()">Send</button>
     </div>
 </div>
 
 <script>
 let chatHistory = [];
-let leadTracker = { isSent: false };
+let leadSent = false;
 
 function toggleChat() {
     const win = document.getElementById('chat-window');
-    win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+    // Force direct style manipulation to bypass any CSS conflicts
+    if (win.style.display === 'flex') {
+        win.style.display = 'none';
+    } else {
+        win.style.display = 'flex';
+    }
 }
 
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
-    const userText = input.value;
-    if (!userText) return;
+    const val = input.value.trim();
+    if (!val) return;
 
-    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
-    
-    const aiBubbleId = "ai-" + Date.now();
-    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
-    
-    chatHistory.push({ role: "user", content: userText });
-    input.value = ""; 
+    // Display User Message
+    container.innerHTML += `<div class="message-row user-row"><div class="msg-bubble user-msg">${val}</div></div>`;
+    chatHistory.push({ role: "user", content: val });
+    input.value = "";
     container.scrollTop = container.scrollHeight;
+
+    // Prepare AI Placeholder
+    const aiId = "ai-" + Date.now();
+    container.innerHTML += `<div class="message-row ai-row"><div id="${aiId}" class="msg-bubble ai-msg">...</div></div>`;
 
     try {
         const res = await fetch("/api/chat", {
@@ -155,10 +206,10 @@ async function send() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        const aiBubble = document.getElementById(aiBubbleId);
-        aiBubble.innerHTML = ""; 
+        const aiBubble = document.getElementById(aiId);
+        aiBubble.innerText = "";
+        let fullText = "";
 
-        let fullAIResponse = "";
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -171,47 +222,39 @@ async function send() {
                     try {
                         const data = JSON.parse(dataStr);
                         const content = data.choices[0].delta.content || "";
-                        aiBubble.innerHTML += content;
-                        fullAIResponse += content;
+                        aiBubble.innerText += content;
+                        fullText += content;
                         container.scrollTop = container.scrollHeight;
                     } catch (e) {}
                 }
             }
         }
-        chatHistory.push({ role: "assistant", content: fullAIResponse });
-        extractAndSendLead(userText, fullAIResponse, container);
-    } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Error. Please refresh.";
+        chatHistory.push({ role: "assistant", content: fullText });
+        checkLead(val, fullText, container);
+    } catch (e) {
+        document.getElementById(aiId).innerText = "Error. Please refresh.";
     }
 }
 
-function extractAndSendLead(userText, fullAIResponse, container) {
-    const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
-    const timeRegex = /((\d{1,2}(:\d{2})?)\s?(am|pm|o'clock))|((at|around)\s\d{1,2})|(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i;
+function checkLead(u, a, container) {
+    const phoneRx = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
+    const timeRx = /(am|pm|tomorrow|today|o'clock|\d{1,2}:\d{2})/i;
     
-    const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
-    const foundPhone = combinedLog.match(phoneRegex);
-    const foundTime = combinedLog.match(timeRegex);
-
-    if (foundPhone && foundTime && !leadTracker.isSent) {
-        leadTracker.isSent = true; 
-        const userMessages = chatHistory.filter(m => m.role === "user");
-        const firstUserMsg = userMessages[0]?.content || "";
-        let namePart = firstUserMsg.replace(/(my name is|i am|i'm|it's|this is|hey|hi|hello)\s+/gi, "").trim();
-        let rawName = namePart.split(' ')[0].replace(/[^a-zA-Z]/g, ""); 
-        const finalName = rawName.charAt(0).toUpperCase() + rawName.slice(1).toLowerCase() || "New Lead";
+    if (phoneRx.test(u + a) && timeRx.test(u + a) && !leadSent) {
+        leadSent = true;
+        const firstName = chatHistory.find(m => m.role === "user").content
+            .replace(/(my name is|i'm|i am|this is|hi|hey)\s+/gi, "")
+            .split(' ')[0].replace(/[^a-zA-Z]/g, "");
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
-            body: JSON.stringify({ 
-                customer_name: finalName, 
-                phone: foundPhone[0],
-                booking_time: foundTime[0], 
-                requested_service: "New Request",
-                full_transcript: container.innerText
+            body: JSON.stringify({
+                customer_name: firstName || "New Lead",
+                phone: (u + a).match(phoneRx)[0],
+                transcript: container.innerText
             })
         }).then(() => {
-            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent!</div>`;
+            container.innerHTML += `<div class="lead-status">📅 Booking details sent to owner!</div>`;
             container.scrollTop = container.scrollHeight;
         });
     }
