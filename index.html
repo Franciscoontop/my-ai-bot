@@ -6,18 +6,16 @@
     <style>
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
 
-        /* THE FIX: Wrapper to ensure visibility near borders */
         #ai-widget-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none; /* Let clicks pass through to site */
-            z-index: 2147483647 !important; /* Absolute highest possible */
+            pointer-events: none; 
+            z-index: 2147483647 !important;
         }
 
-        /* BUBBLE - Minimal Glow Restored */
         #chat-bubble {
             position: absolute; 
             bottom: 25px; 
@@ -30,31 +28,28 @@
             align-items: center;
             justify-content: center; 
             cursor: pointer; 
-            pointer-events: auto; /* Enable clicks for just the bubble */
+            pointer-events: auto;
             transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
         }
 
-        /* MINIMAL GLOW - Tight and subtle */
         #chat-bubble::after {
             content: ''; 
             position: absolute; 
-            width: 100%; 
-            height: 100%; 
+            width: 100%; height: 100%; 
             border-radius: 50%;
             background: linear-gradient(45deg, #00ffff, #ff00ff);
             z-index: -1; 
             filter: blur(10px);
-            opacity: 0.2; /* Very minimal as requested */
+            opacity: 0.2;
             transition: opacity 0.3s ease;
         }
 
         #chat-bubble:hover { transform: scale(1.1); }
-        #chat-bubble:hover::after { opacity: 0.4; } /* Subtle glow increase on hover */
+        #chat-bubble:hover::after { opacity: 0.4; }
 
         .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
 
-        /* CHAT WINDOW - Forced to stay on top */
         #chat-window {
             position: absolute; 
             bottom: 95px; 
@@ -134,11 +129,21 @@
 <script>
 let chatHistory = [];
 let leadTracker = { isSent: false };
+let hasAutoPopped = false;
 
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
+
+// THE FIX: EXIT INTENT TRIGGER
+document.addEventListener('mouseleave', (e) => {
+    // clientY <= 0 detects when mouse leaves the top of the browser viewport
+    if (e.clientY <= 0 && !hasAutoPopped) {
+        document.getElementById('chat-window').style.display = 'flex';
+        hasAutoPopped = true; 
+    }
+});
 
 async function send() {
     const input = document.getElementById("msg");
@@ -201,11 +206,13 @@ function extractAndSendLead(userText, fullAIResponse, container) {
 
     if (foundPhone && !leadTracker.isSent) {
         leadTracker.isSent = true; 
-        const namePart = chatHistory.find(m => m.role === "user").content.split(' ')[0];
-        const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase() || "New Customer";
+        const nameMsg = chatHistory.find(m => m.role === "user");
+        const namePart = nameMsg ? nameMsg.content.split(' ')[0] : "New Customer";
+        const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
+            mode: 'no-cors', // Added for common Zapier webhook issues
             body: JSON.stringify({ 
                 customer_name: finalName, 
                 phone: foundPhone[0],
@@ -214,7 +221,7 @@ function extractAndSendLead(userText, fullAIResponse, container) {
         }).then(() => {
             container.innerHTML += `<div class="lead-captured">📅 Details captured. We'll be in touch!</div>`;
             container.scrollTop = container.scrollHeight;
-        });
+        }).catch(err => console.log("Webhook error:", err));
     }
 }
 </script>
