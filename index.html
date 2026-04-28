@@ -26,7 +26,6 @@
             width: 65px;
             height: 65px;
             background: #fff;
-            color: #000;
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -35,13 +34,35 @@
             box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.1);
             z-index: 999;
             transition: all 0.3s ease;
-            font-size: 28px;
         }
 
-        /* Glow on Hover */
+        /* The Animated AI Icon */
+        .ai-icon {
+            width: 32px;
+            height: 32px;
+            fill: #000;
+            animation: ai-float 3s ease-in-out infinite;
+        }
+
+        /* ILL ANIMATION: Floating and subtle scaling */
+        @keyframes ai-float {
+            0% { transform: translateY(0px) scale(1); }
+            50% { transform: translateY(-5px) scale(1.1); }
+            100% { transform: translateY(0px) scale(1); }
+        }
+
+        /* Glow and Pulse on Hover */
         #chat-bubble:hover {
             transform: scale(1.1);
-            box-shadow: 0px 0px 25px 8px rgba(255, 255, 255, 0.4);
+            box-shadow: 0px 0px 30px 10px rgba(255, 255, 255, 0.5);
+        }
+
+        #chat-bubble:hover .ai-icon {
+            animation: ai-spin 1s ease-in-out; /* Little spin on hover */
+        }
+
+        @keyframes ai-spin {
+            100% { transform: rotate(360deg); }
         }
 
         #bubble-label {
@@ -109,28 +130,25 @@
             font-weight: bold;
         }
 
-        /* --- THE POPUP FIX --- */
+        /* Exit Intent Popup */
         #ai-popup { 
             position: fixed; 
             top: 50%;
             left: 50%;
-            transform: translate(-50%, -40%); /* Start slightly lower for animation */
+            transform: translate(-50%, -40%);
             width: 320px; 
             background: #1a1a1a; 
             border: 2px solid #fff; 
             padding: 30px; 
             border-radius: 20px; 
             box-shadow: 0px 0px 100px rgba(0,0,0,1); 
-            z-index: 10001; /* Must be higher than chat */
+            z-index: 10001;
             text-align: center;
-            
-            /* Hidden by default */
             opacity: 0;
             visibility: hidden;
             transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* When the 'show' class is added */
         #ai-popup.show {
             visibility: visible !important;
             opacity: 1 !important;
@@ -160,7 +178,9 @@
 
 <div id="chat-bubble" onclick="toggleChat()">
     <span id="bubble-label">Talk to me!</span>
-    🤖
+    <svg class="ai-icon" viewBox="0 0 24 24">
+        <path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" />
+    </svg>
 </div>
 
 <div id="chat-window">
@@ -177,7 +197,7 @@
 
 <div id="ai-popup">
     <span class="close-x" onclick="closePopup()">×</span>
-    <p style="font-size: 1.2em;"><strong>Wait!</strong> 🤖</p>
+    <p style="font-size: 1.2em;"><strong>Wait!</strong> ✨</p>
     <p>Before you go, would you like a **20% discount** on your first month?</p>
     <button class="popup-btn" onclick="closePopup()">Claim My Discount</button>
 </div>
@@ -185,13 +205,11 @@
 <script>
 let hasSentLead = false;
 
-// Toggle Chat Window
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
 
-// AI Chat Send Logic
 async function send() {
   const input = document.getElementById("msg");
   const container = document.getElementById("response-container");
@@ -231,7 +249,6 @@ async function send() {
             aiResponseDiv.innerHTML += content;
             container.scrollTop = container.scrollHeight;
 
-            // Simple Phone Lead Capture
             const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
             const foundPhone = aiResponseDiv.innerText.match(phoneRegex);
             if (foundPhone && !hasSentLead) {
@@ -245,19 +262,16 @@ async function send() {
         }
       }
     }
-    aiResponseDiv.id = ""; // Reset ID for next message
+    aiResponseDiv.id = "";
   } catch (err) {
     container.innerHTML += `<div>Error: ${err.message}</div>`;
   }
 }
 
-// --- UPDATED POPUP LOGIC ---
 function showPopup() {
     const popup = document.getElementById('ai-popup');
     const wasClosed = localStorage.getItem('exitPopupClosed');
-    
     if (popup && !wasClosed) {
-        console.log("Triggering Popup");
         popup.classList.add('show');
     }
 }
@@ -268,7 +282,6 @@ function closePopup() {
     localStorage.setItem('exitPopupClosed', 'true');
 }
 
-// Triggers
 document.addEventListener("mouseleave", function(e) {
     if (e.clientY < 0) showPopup();
 });
