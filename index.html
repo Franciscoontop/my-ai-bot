@@ -35,7 +35,7 @@
             z-index: 1000; overflow: hidden;
         }
 
-        /* Specialized Header */
+        /* Header */
         #chat-header { 
             background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; 
             display: flex; justify-content: space-between; align-items: center;
@@ -47,7 +47,7 @@
 
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; background: #050505; }
 
-        /* Message Rows */
+        /* Messages */
         .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
         .ai-row { align-self: flex-start; flex-direction: row; }
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
@@ -61,17 +61,17 @@
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
 
-        /* Lead Success Message */
+        /* Booking Success */
         .lead-captured { 
             background: rgba(0, 255, 136, 0.1); 
             border: 1px dashed #00ff88; 
             color: #00ff88; 
-            font-size: 12px; 
-            padding: 10px; 
+            font-size: 13px; 
+            padding: 12px; 
             text-align: center; 
             border-radius: 10px; 
             margin: 10px 0;
-            line-height: 1.4;
+            font-weight: 500;
         }
 
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
@@ -107,13 +107,14 @@
         </div>
     </div>
     <div class="input-area">
-        <input id="msg" placeholder="Tell me your name and what you need..." onkeypress="if(event.key === 'Enter') send()" />
+        <input id="msg" placeholder="Type here..." onkeypress="if(event.key === 'Enter') send()" />
         <button class="send-btn" onclick="send()">Send</button>
     </div>
 </div>
 
 <script>
-// Tracker to ensure we trigger the organized email only once per session
+// Memory: This stores the whole conversation so the AI doesn't forget
+let chatHistory = [];
 let leadTracker = { isSent: false };
 
 function toggleChat() {
@@ -124,15 +125,18 @@ function toggleChat() {
 async function send() {
   const input = document.getElementById("msg");
   const container = document.getElementById("response-container");
-  const message = input.value;
-  if (!message) return;
+  const userText = input.value;
+  if (!userText) return;
 
-  // Add User Row
-  container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${message}</div></div>`;
+  // 1. Update UI with User Message
+  container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
   
+  // 2. Add AI placeholder
   const aiBubbleId = "ai-" + Date.now();
-  // Add AI Row
   container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg class="mini-icon" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+  
+  // 3. Save to memory
+  chatHistory.push({ role: "user", content: userText });
   
   input.value = ""; 
   container.scrollTop = container.scrollHeight;
@@ -141,10 +145,7 @@ async function send() {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-          message,
-          system_prompt: "You are a professional Booking Coordinator. Your goal is to collect: 1. Customer Name, 2. Specific Service, 3. Phone Number, and 4. Preferred Day/Time. Be helpful and polite. Once you have a phone number and a time mention, confirm that you are sending the booking request to the owner."
-      }),
+      body: JSON.stringify({ messages: chatHistory }), // Send entire history
     });
 
     const reader = res.body.getReader();
@@ -152,7 +153,7 @@ async function send() {
     const aiBubble = document.getElementById(aiBubbleId);
     aiBubble.innerHTML = ""; 
 
-    let fullResponse = "";
+    let fullAIResponse = "";
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
@@ -166,42 +167,47 @@ async function send() {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
             aiBubble.innerHTML += content;
-            fullResponse += content;
+            fullAIResponse += content;
             container.scrollTop = container.scrollHeight;
           } catch (e) {}
         }
       }
     }
 
-    // --- SMART BOOKING DETECTION ---
+    // Save AI response to memory
+    chatHistory.push({ role: "assistant", content: fullAIResponse });
+
+    // --- ZAPIER AUTO-BOOKING LOGIC ---
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const timeRegex = /(monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|at \d|pm|am|clock)/i;
     
-    const combinedText = (message + fullResponse).toLowerCase();
-    const foundPhone = combinedText.match(phoneRegex);
-    const foundTime = combinedText.match(timeRegex);
+    const combinedLog = (userText + fullAIResponse).toLowerCase();
+    const foundPhone = combinedLog.match(phoneRegex);
+    const foundTime = combinedLog.match(timeRegex);
 
     if (foundPhone && foundTime && !leadTracker.isSent) {
         leadTracker.isSent = true; 
         
-        // Push ORGANIZED data to Zapier
+        // Find the first user message to guess the name for Zapier
+        const userName = chatHistory.find(m => m.role === "user")?.content.split(' ')[0] || "New Lead";
+
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
             method: "POST",
             body: JSON.stringify({ 
-                type: "NEW BOOKING REQUEST",
+                type: "BOOKING REQUEST",
+                customer_name: userName,
                 phone: foundPhone[0],
-                transcript: container.innerText, // Sends full conversation context for the email
-                alert_level: "High",
-                captured_at: new Date().toLocaleString()
+                transcript: container.innerText, // This is your "Raw Output"
+                timestamp: new Date().toLocaleString()
             })
         }).then(() => {
-            container.innerHTML += `<div class="lead-captured">📅 Booking Request Sent! <br>The owner will review your details and confirm shortly.</div>`;
+            container.innerHTML += `<div class="lead-captured">📅 Booking Details Sent! <br>The owner will contact you shortly to confirm.</div>`;
             container.scrollTop = container.scrollHeight;
         });
     }
 
   } catch (err) {
-    document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
+    document.getElementById(aiBubbleId).innerText = "Disconnected. Refresh to try again.";
   }
 }
 </script>
