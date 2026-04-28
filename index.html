@@ -1,190 +1,222 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Business Assistant & Special Offer</title>
+    <title>AI Business Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
 
-        /* LAYER 1: AI WIDGET (Highest Priority) */
+        /* THE FIX: Wrapper to ensure visibility near borders */
         #ai-widget-wrapper {
             position: fixed;
             top: 0;
             left: 0;
-            width: 100vw;
-            height: 100vh;
-            pointer-events: none; 
-            z-index: 2147483647 !important;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* Let clicks pass through to site */
+            z-index: 2147483647 !important; /* Absolute highest possible */
         }
 
+        /* BUBBLE - Minimal Glow Restored */
         #chat-bubble {
-            position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
-            background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; pointer-events: auto; transition: transform 0.2s ease; box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+            position: absolute; 
+            bottom: 25px; 
+            right: 25px; 
+            width: 60px; 
+            height: 60px;
+            background: #fff; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center;
+            justify-content: center; 
+            cursor: pointer; 
+            pointer-events: auto; /* Enable clicks for just the bubble */
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
         }
+
+        /* MINIMAL GLOW - Tight and subtle */
         #chat-bubble::after {
-            content: ''; position: absolute; width: 100%; height: 100%; border-radius: 50%;
-            background: linear-gradient(45deg, #00ffff, #ff00ff); z-index: -1; filter: blur(10px); opacity: 0.15;
+            content: ''; 
+            position: absolute; 
+            width: 100%; 
+            height: 100%; 
+            border-radius: 50%;
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            z-index: -1; 
+            filter: blur(10px);
+            opacity: 0.2; /* Very minimal as requested */
+            transition: opacity 0.3s ease;
         }
+
         #chat-bubble:hover { transform: scale(1.1); }
+        #chat-bubble:hover::after { opacity: 0.4; } /* Subtle glow increase on hover */
 
+        .ai-icon-svg { width: 30px; height: 30px; fill: #000; }
+
+        /* CHAT WINDOW - Forced to stay on top */
         #chat-window {
-            position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px;
-            background: #111; border: 1px solid #333; border-radius: 20px; display: none; 
-            flex-direction: column; pointer-events: auto; box-shadow: 0px 20px 60px rgba(0,0,0,1);
-            overflow: hidden; animation: slideUp 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+            position: absolute; 
+            bottom: 95px; 
+            right: 25px; 
+            width: 360px; 
+            height: 550px;
+            max-height: 80vh;
+            background: #111; 
+            border: 1px solid #333; 
+            border-radius: 20px;
+            display: none; 
+            flex-direction: column; 
+            box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
+            pointer-events: auto;
+            overflow: hidden;
         }
 
-        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* LAYER 2: DISCOUNT POPUP (Secondary Priority) */
-        #discount-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center;
-            z-index: 2000000000; /* Just below AI */
-        }
-        #discount-modal {
-            background: #fff; color: #000; padding: 40px; border-radius: 20px; text-align: center;
-            max-width: 400px; width: 90%; animation: popIn 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-        }
-        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .discount-code { font-size: 32px; font-weight: 900; color: #ff00ff; margin: 20px 0; border: 2px dashed #000; padding: 10px; }
-
-        /* SHARED UI */
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .header-title { display: flex; align-items: center; gap: 10px; }
+        .header-text b { display: block; font-size: 14px; color: #fff; }
+        .header-text span { font-size: 11px; color: #00ff88; }
+        
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; }
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; max-width: 85%; line-height: 1.4; }
-        .ai-msg { background: #222; color: #fff; align-self: flex-start; border: 1px solid #333; }
-        .user-msg { background: #fff; color: #000; align-self: flex-end; }
+        
+        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+        .ai-row { align-self: flex-start; }
+        .user-row { align-self: flex-end; flex-direction: row-reverse; }
+        
+        .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .ai-avatar { background: #fff; }
+        .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
+        
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; }
+        .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
+        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+        
+        .lead-captured { background: rgba(0, 255, 136, 0.1); border: 1px dashed #00ff88; color: #00ff88; font-size: 12px; padding: 10px; text-align: center; border-radius: 10px; margin: 10px 0; }
+
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
         .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .close-discount { margin-top: 20px; cursor: pointer; color: #888; text-decoration: underline; font-size: 14px; }
     </style>
 </head>
 <body>
 
-<div id="discount-overlay">
-    <div id="discount-modal">
-        <h2 style="margin:0;">Wait! Don't go!</h2>
-        <p>Get a special discount on your first service if you book today.</p>
-        <div class="discount-code">SAVE10</div>
-        <button class="send-btn" style="width:100%; height:50px;" onclick="closeDiscount()">Claim Offer</button>
-        <div class="close-discount" onclick="closeDiscount()">No thanks, I'll pay full price</div>
-    </div>
-</div>
-
 <div id="ai-widget-wrapper">
-    <div id="chat-bubble">
-        <svg width="28" height="28" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L13,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+    <div id="chat-bubble" onclick="toggleChat()">
+        <svg class="ai-icon-svg" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
     </div>
 
     <div id="chat-window">
         <div id="chat-header">
-            <b>AI Booking Assistant</b>
-            <span style="cursor:pointer; color:#888; font-size: 20px;" id="close-chat">✕</span>
+            <div class="header-title">
+                <div class="avatar ai-avatar">
+                    <svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+                </div>
+                <div class="header-text">
+                    <b>AI Assistant</b>
+                    <span>● Online</span>
+                </div>
+            </div>
+            <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
         </div>
         <div id="response-container">
-            <div class="msg-bubble ai-msg">Hi! What's your <b>Name</b> and the <b>Service</b> you're looking for?</div>
+            <div class="message-row ai-row">
+                <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
+                <div class="msg-bubble ai-msg">Hi! What's your <b>Name</b> and which <b>Service</b> can I help you with today?</div>
+            </div>
         </div>
         <div class="input-area">
-            <input id="msg" placeholder="Type a message..." />
-            <button class="send-btn" id="send-trigger">Send</button>
+            <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
+            <button class="send-btn" onclick="send()">Send</button>
         </div>
     </div>
 </div>
 
 <script>
-(function() {
-    const _bubble = document.getElementById('chat-bubble');
-    const _win = document.getElementById('chat-window');
-    const _closeChat = document.getElementById('close-chat');
-    const _discountOverlay = document.getElementById('discount-overlay');
-    const _input = document.getElementById('msg');
-    const _sendBtn = document.getElementById('send-trigger');
-    const _container = document.getElementById('response-container');
+let chatHistory = [];
+let leadTracker = { isSent: false };
+
+function toggleChat() {
+    const win = document.getElementById('chat-window');
+    win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+}
+
+async function send() {
+    const input = document.getElementById("msg");
+    const container = document.getElementById("response-container");
+    const userText = input.value.trim();
+    if (!userText) return;
+
+    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    let _history = [];
-    let _discountShown = false;
+    const aiBubbleId = "ai-" + Date.now();
+    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+    
+    chatHistory.push({ role: "user", content: userText });
+    input.value = ""; 
+    container.scrollTop = container.scrollHeight;
 
-    // 1. DISCOUNT TRIGGER (EXIT INTENT)
-    document.addEventListener('mouseleave', (e) => {
-        if (e.clientY <= 0 && !_discountShown) { 
-            _discountOverlay.style.display = 'flex';
-            _discountShown = true; // Only show once per refresh
-        }
-    });
+    try {
+        const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: chatHistory }),
+        });
 
-    window.closeDiscount = function() {
-        _discountOverlay.style.display = 'none';
-    };
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        const aiBubble = document.getElementById(aiBubbleId);
+        aiBubble.innerHTML = ""; 
 
-    // 2. AI BUBBLE TOGGLE
-    _bubble.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _win.style.display = 'flex';
-    });
-
-    _closeChat.addEventListener('click', (e) => {
-        e.stopPropagation();
-        _win.style.display = 'none';
-    });
-
-    // 3. AI CHAT LOGIC
-    async function _handleSend() {
-        const text = _input.value.trim();
-        if (!text) return;
-
-        _container.innerHTML += `<div class="msg-bubble user-msg">${text}</div>`;
-        _history.push({ role: "user", content: text });
-        _input.value = ""; 
-        _container.scrollTop = _container.scrollHeight;
-
-        const aiId = "ai-" + Date.now();
-        _container.innerHTML += `<div id="${aiId}" class="msg-bubble ai-msg">...</div>`;
-
-        try {
-            const res = await fetch("/api/chat", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: _history }),
-            });
-
-            const reader = res.body.getReader();
-            const decoder = new TextDecoder();
-            const aiBubble = document.getElementById(aiId);
-            aiBubble.innerText = ""; 
-
-            let fullText = "";
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                const chunk = decoder.decode(value);
-                const lines = chunk.split("\n");
-                for (const line of lines) {
-                    if (line.startsWith("data: ")) {
-                        const dataStr = line.replace("data: ", "").trim();
-                        if (dataStr === "[DONE]") break;
-                        try {
-                            const data = JSON.parse(dataStr);
-                            const content = data.choices[0].delta.content || "";
-                            aiBubble.innerText += content;
-                            fullText += content;
-                            _container.scrollTop = _container.scrollHeight;
-                        } catch (e) {}
-                    }
+        let fullAIResponse = "";
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const dataStr = line.replace("data: ", "").trim();
+                    if (dataStr === "[DONE]") break;
+                    try {
+                        const data = JSON.parse(dataStr);
+                        const content = data.choices[0].delta.content || "";
+                        aiBubble.innerHTML += content;
+                        fullAIResponse += content;
+                        container.scrollTop = container.scrollHeight;
+                    } catch (e) {}
                 }
             }
-            _history.push({ role: "assistant", content: fullText });
-        } catch (err) {
-            document.getElementById(aiId).innerText = "Error. Please refresh.";
         }
+        chatHistory.push({ role: "assistant", content: fullAIResponse });
+        extractAndSendLead(userText, fullAIResponse, container);
+    } catch (err) {
+        document.getElementById(aiBubbleId).innerText = "Connection error. Please try again.";
     }
+}
 
-    _sendBtn.addEventListener('click', _handleSend);
-    _input.addEventListener('keypress', (e) => { if(e.key === 'Enter') _handleSend(); });
+function extractAndSendLead(userText, fullAIResponse, container) {
+    const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
+    const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
+    const foundPhone = combinedLog.match(phoneRegex);
 
-})();
+    if (foundPhone && !leadTracker.isSent) {
+        leadTracker.isSent = true; 
+        const namePart = chatHistory.find(m => m.role === "user").content.split(' ')[0];
+        const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase() || "New Customer";
+
+        fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
+            method: "POST",
+            body: JSON.stringify({ 
+                customer_name: finalName, 
+                phone: foundPhone[0],
+                transcript: container.innerText
+            })
+        }).then(() => {
+            container.innerHTML += `<div class="lead-captured">📅 Details captured. We'll be in touch!</div>`;
+            container.scrollTop = container.scrollHeight;
+        });
+    }
+}
 </script>
 </body>
 </html>
