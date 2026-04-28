@@ -4,71 +4,176 @@
     <title>AI Business Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; max-width: 600px; margin: auto; }
-        #response { white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 8px; min-height: 50px; border: 1px solid #ddd; }
-        input { padding: 10px; width: 70%; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 10px 20px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 5px; }
-        .review-box { text-align: center; margin-top: 40px; padding: 20px; border-top: 1px solid #eee; }
-        
-        /* POPUP CORE STYLES */
-        #ai-popup { 
-            position: fixed; 
-            bottom: 80px; 
-            right: 20px; 
-            width: 280px; 
-            background: white; 
-            border: 3px solid #000; 
+        /* Base Dark Theme */
+        body { 
+            background-color: #000; 
+            color: #fff; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
             padding: 20px; 
-            border-radius: 15px; 
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5); 
-            z-index: 10000;
-            
-            /* Hidden State */
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(30px);
-            transition: all 0.5s ease-in-out;
+            line-height: 1.6; 
+            max-width: 800px; 
+            margin: auto; 
         }
 
-        /* Visible State */
+        h1 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+
+        /* Floating AI Bubble */
+        #chat-bubble {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #fff;
+            color: #000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0px 4px 15px rgba(255, 255, 255, 0.1);
+            z-index: 10001;
+            transition: all 0.3s ease;
+            font-size: 24px;
+        }
+
+        /* The Glow Effect on Hover */
+        #chat-bubble:hover {
+            transform: scale(1.1);
+            box-shadow: 0px 0px 20px 5px rgba(255, 255, 255, 0.6);
+        }
+
+        /* Hover Label */
+        #bubble-label {
+            position: absolute;
+            right: 70px;
+            background: #222;
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            border: 1px solid #444;
+        }
+
+        #chat-bubble:hover #bubble-label { opacity: 1; }
+
+        /* Floating Chat Window */
+        #chat-window {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 320px;
+            height: 450px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 15px;
+            display: none; /* Toggle via JS */
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0px 10px 30px rgba(0,0,0,0.8);
+            z-index: 10001;
+        }
+
+        #chat-header { background: #222; padding: 15px; font-weight: bold; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        
+        #response-container { 
+            flex: 1; 
+            padding: 15px; 
+            overflow-y: auto; 
+            font-size: 14px; 
+            white-space: pre-wrap;
+            background: #0a0a0a;
+        }
+
+        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 5px; }
+        
+        input { 
+            flex: 1; 
+            padding: 10px; 
+            background: #222; 
+            border: 1px solid #444; 
+            color: #fff; 
+            border-radius: 5px; 
+            outline: none;
+        }
+
+        button { 
+            padding: 10px; 
+            background: #fff; 
+            color: #000; 
+            border: none; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            font-weight: bold;
+        }
+
+        /* Exit Intent Popup Styles */
+        #ai-popup { 
+            position: fixed; 
+            bottom: 50%; 
+            right: 50%; 
+            transform: translate(50%, 50%) translateY(30px);
+            width: 300px; 
+            background: #1a1a1a; 
+            border: 2px solid #fff; 
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0px 0px 50px rgba(0,0,0,1); 
+            z-index: 10005;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease-in-out;
+            text-align: center;
+        }
+
         #ai-popup.show {
             visibility: visible !important;
             opacity: 1 !important;
-            transform: translateY(0) !important;
+            transform: translate(50%, 50%) translateY(0) !important;
         }
 
-        .close-btn {
-            position: absolute;
-            top: 5px;
-            right: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 24px;
-            color: #888;
-        }
-        .close-btn:hover { color: #000; }
+        .close-x { cursor: pointer; position: absolute; top: 10px; right: 15px; color: #888; font-size: 20px; }
+
+        .review-box { margin-top: 60px; border-top: 1px solid #333; padding-top: 20px; text-align: center; }
+        a { color: #aaa; text-decoration: none; }
+        a:hover { color: #fff; }
     </style>
 </head>
 <body>
 
 <h1>AI Business Assistant</h1>
+<p>Welcome to our new high-performance interface. Explore our services while our AI remains ready to assist you in the corner.</p>
 
-<div style="margin-bottom: 20px;">
-    <input id="msg" placeholder="Ask about our services..." />
-    <button onclick="send()">Send</button>
+<div id="chat-bubble" onclick="toggleChat()">
+    <span id="bubble-label">Talk to me!</span>
+    🤖
 </div>
 
-<div id="response">Your AI assistant is ready!</div>
+<div id="chat-window">
+    <div id="chat-header">
+        <span>AI Assistant</span>
+        <span style="cursor:pointer" onclick="toggleChat()">—</span>
+    </div>
+    <div id="response-container">Hello! How can I help you today?</div>
+    <div class="input-area">
+        <input id="msg" placeholder="Type a message..." onkeypress="if(event.key === 'Enter') send()" />
+        <button onclick="send()">Send</button>
+    </div>
+</div>
 
 <div id="ai-popup">
-    <span class="close-btn" onclick="closePopup()">×</span>
-    <p><strong>Wait!</strong> 🤖 20% discount detected for you!</p>
-    <button onclick="closePopup()" style="width:100%;">Close</button>
+    <span class="close-x" onclick="closePopup()">×</span>
+    <p><strong>Exclusive Offer</strong> 🤖<br><br>Don't leave yet! Get a 20% discount on your first project.</p>
+    <button onclick="closePopup()" style="width:100%; background: #fff; color: #000;">Claim Offer</button>
 </div>
 
 <div class="review-box">
    <p>Happy with our service?</p>
-   <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank" style="text-decoration:none; color:blue; font-weight:bold; font-size: 1.2em;">
+   <a href="https://docs.google.com/document/d/10tkUO6lDqPb57OPWiHVjpNjezC6L1YQN3L6h3I9r-qU/edit?tab=t.0" target="_blank">
      ⭐ Leave us a Google Review
    </a>
 </div>
@@ -76,15 +181,20 @@
 <script>
 let hasSentLead = false;
 
-// --- AI CHAT LOGIC ---
+function toggleChat() {
+    const win = document.getElementById('chat-window');
+    win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+}
+
 async function send() {
   const input = document.getElementById("msg");
-  const responseElement = document.getElementById("response");
+  const responseElement = document.getElementById("response-container");
   const message = input.value;
   if (!message) return;
 
-  responseElement.innerText = "Connecting..."; 
+  responseElement.innerText += "\n\nYou: " + message + "\n\nAI: Connecting..."; 
   input.value = ""; 
+  responseElement.scrollTop = responseElement.scrollHeight;
 
   try {
     const res = await fetch("/api/chat", {
@@ -95,7 +205,10 @@ async function send() {
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    responseElement.innerText = ""; 
+    
+    // Clear the "Connecting..." text for the stream
+    const baseText = responseElement.innerText.replace("AI: Connecting...", "AI: ");
+    responseElement.innerText = baseText;
 
     while (true) {
       const { done, value } = await reader.read();
@@ -107,15 +220,15 @@ async function send() {
         if (line.startsWith("data: ")) {
           const dataStr = line.replace("data: ", "").trim();
           if (dataStr === "[DONE]") break;
-
           try {
             const data = JSON.parse(dataStr);
             const content = data.choices[0].delta.content || "";
             responseElement.innerText += content;
+            responseElement.scrollTop = responseElement.scrollHeight;
 
+            // Lead Capture Logic
             const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})/;
             const foundPhone = responseElement.innerText.match(phoneRegex);
-
             if (foundPhone && !hasSentLead) {
                 hasSentLead = true; 
                 fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
@@ -128,18 +241,15 @@ async function send() {
       }
     }
   } catch (err) {
-    responseElement.innerText = "Error: " + err.message;
+    responseElement.innerText += "\nError: " + err.message;
   }
 }
 
 // --- POPUP LOGIC ---
 function showPopup() {
     const popup = document.getElementById('ai-popup');
-    // Check if they have already closed it once
     const wasClosed = localStorage.getItem('popupShownOnce');
-
     if (popup && !wasClosed) {
-        console.log("Showing popup for the first time!");
         popup.classList.add('show');
     }
 }
@@ -147,24 +257,15 @@ function showPopup() {
 function closePopup() {
     const popup = document.getElementById('ai-popup');
     popup.classList.remove('show');
-    
-    // SET THE COOL DOWN: Save to browser memory
     localStorage.setItem('popupShownOnce', 'true');
-    console.log("Popup closed. It won't show again for this user.");
 }
 
-// TRIGGER 1: Mouse leaves top
+// Triggers for Exit Intent
 document.addEventListener("mouseleave", function(e) {
-    if (e.clientY < 0) { 
-        showPopup();
-    }
+    if (e.clientY < 0) showPopup();
 });
-
-// TRIGGER 2: Proximity to top
 document.addEventListener("mousemove", function(e) {
-    if (e.clientY < 5) {
-        showPopup();
-    }
+    if (e.clientY < 5) showPopup();
 });
 </script>
 
