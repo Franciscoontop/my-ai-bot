@@ -35,14 +35,23 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- CHAT BUBBLE --- */
+        /* --- CHAT BUBBLE WITH GENTLE GLOW --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; pointer-events: auto; box-shadow: 0px 4px 20px rgba(0,0,0,0.4);
-            animation: floatBubble 4s ease-in-out infinite;
+            cursor: pointer; pointer-events: auto; 
+            /* Added gentle white glow animation */
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            animation: floatBubble 4s ease-in-out infinite, gentleGlow 3s ease-in-out infinite;
         }
+
         @keyframes floatBubble { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
+        
+        /* Pulse effect for the glow */
+        @keyframes gentleGlow {
+            0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
+            50% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.6); }
+        }
 
         /* --- CHAT WINDOW --- */
         #chat-window {
@@ -117,7 +126,6 @@
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. Initial Greeting Logic
 function setGreeting(text) {
     const container = document.getElementById("response-container");
     container.innerHTML = `
@@ -127,19 +135,15 @@ function setGreeting(text) {
         </div>`;
 }
 
-// Default greeting on load
 setGreeting("Hi! What's your <b>Name</b> and which <b>Service</b> can I help you with today?");
 
 function closeModal() {
     document.getElementById('exit-modal').classList.remove('active');
 }
 
-// 2. Claim Offer Function
 function claimOffer() {
     closeModal();
-    // Open chat
     document.getElementById('chat-window').style.display = 'flex';
-    // Change the AI greeting specifically for the offer
     setGreeting("I see you'd like to receive the 20% OFF offer! Let's get started with your <b>Name</b> and the <b>Service</b> you'd like to receive.");
 }
 
