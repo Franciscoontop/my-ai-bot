@@ -34,15 +34,21 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- SPIRAL ICON --- */
+        /* --- ENHANCED SMOOTH SPIRAL --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; pointer-events: auto; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
             z-index: 2147483649;
-            /* Curved path timing function */
-            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            /* Using a "Back" ease for more organic motion */
+            transition: 
+                bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
+                width 0.5s ease,
+                height 0.5s ease,
+                transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.3s ease;
         }
 
         #chat-bubble.active-spiral {
@@ -50,11 +56,11 @@
             right: 343px;
             width: 26px;
             height: 26px;
-            transform: rotate(720deg);
+            transform: rotate(720deg); /* Smooth double-spin */
             box-shadow: none;
         }
 
-        #chat-bubble svg { transition: all 0.7s ease; }
+        #chat-bubble svg { transition: all 0.6s ease; }
         #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
 
         /* --- CHAT WINDOW --- */
@@ -64,7 +70,7 @@
             display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
             pointer-events: auto; overflow: hidden;
             opacity: 0;
-            transition: opacity 0.4s ease;
+            transition: opacity 0.5s ease;
         }
 
         #chat-window.open { display: flex; opacity: 1; }
@@ -148,7 +154,6 @@ function closeModal() {
     document.getElementById('exit-modal').classList.remove('active');
 }
 
-// FIXED: Now checks if chat is already open
 function claimOffer() {
     closeModal();
     const win = document.getElementById('chat-window');
