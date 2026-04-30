@@ -15,26 +15,25 @@ export default async function handler(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        // SWITCHED TO 8B FOR MAXIMUM SPEED
         model: "meta/llama-3.1-8b-instruct", 
         messages: [
           { 
             role: "system", 
             content: `You are a professional Business Assistant. 
-            Your goal is to help users with business inquiries, services, and scheduling.
+            CORE ABILITY: You are excellent at understanding user intent even if they have typos (e.g., if they say "pirces", understand they mean "prices"). 
             
             TONE & RULES:
-            1. Be polite, professional, and helpful.
-            2. If a user asks for something non-business related (like recipes, jokes, or random facts), politely decline and bring them back to the services.
-            3. Redirect phrase: "I'd be happy to help you with our business services or scheduling an appointment. Which of our services are you interested in today?"
-            4. Keep responses under 2 sentences. Be extremely fast.` 
+            1. Be helpful and professional.
+            2. If the user is off-topic, politely pivot back to business services or scheduling.
+            3. Keep responses under 2 sentences.
+            4. If a user asks about prices, scheduling, or specific services, answer them directly based on their implied meaning.` 
           },
           ...messages
         ],
         stream: true,
-        temperature: 0.5, // Increased slightly so it sounds like a human
+        temperature: 0.6, // Slightly higher for better "reasoning" through typos
         top_p: 0.9,
-        max_tokens: 150, // Short responses = faster streaming
+        max_tokens: 150,
       }),
     });
 
