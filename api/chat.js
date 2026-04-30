@@ -1,9 +1,8 @@
 export const config = {
-  runtime: 'edge', // Using Edge to prevent the 10s timeout issue
+  runtime: 'edge', // Prevents 504 timeouts on Vercel
 };
 
 export default async function handler(req) {
-  // 1. Only allow POST requests
   if (req.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405 });
   }
@@ -11,7 +10,6 @@ export default async function handler(req) {
   try {
     const { messages } = await req.json();
 
-    // 2. Call the NVIDIA API
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -23,51 +21,41 @@ export default async function handler(req) {
         messages: [
           { 
             role: "system", 
-            content: `You are a World-Class Sales Representative for our AI Automation Agency. 
-
-            BUSINESS INFO:
-            - Services: Custom Chatbots, Workflow Automation, AI Consulting.
-            - Pricing: Starts at $500/month.
-            - Offer: 20% OFF for new clients today.
+            content: `You are a World-Class Sales Representative. Your goal is to convert visitors into booked clients.
 
             SALES STRATEGY:
-            1. VALUE: Emphasize saving time and premium results.
-            2. URGENCY: The 20% discount is a limited-time offer.
-            3. CLOSING: Every response MUST end by asking for their Name or Phone Number to "secure the discount."
-            
+            1. VALUE: Emphasize that our services save time and deliver premium results.
+            2. URGENCY: Remind them that the 20% OFF discount is a limited-time offer to help them get started today.
+            3. CLOSING: Every response must end by asking for their Name or their Phone Number to "secure the discount" or "check availability."
+            4. OBJECTIONS: If they seem hesitant, remind them that this 20% discount makes it the perfect time to trial our expertise.
+
             STRICT RULES:
-            - ONLY discuss business services and the discount.
-            - If they ask about food, pizza, or recipes, say: "I specialize in growing businesses through AI, not cooking! Let's get you that 20% discount for your business instead. What's your name?"
-            - Keep responses punchy (max 2-3 sentences).` 
+            - ONLY discuss business services, scheduling, and the 20% discount.
+            - Redirect all off-topic talk (recipes, cake, etc.) back to the value of our services.
+            - Keep responses punchy and persuasive (max 2-3 sentences).` 
           },
           ...messages
         ],
-        stream: true, // Enables real-time typing
+        stream: true,
         temperature: 0.4,
         top_p: 0.8,
-        max_tokens: 250,
+        max_tokens: 200,
       }),
     });
 
-    // 3. Handle API Errors
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error("NVIDIA API Error:", errorData);
       return new Response("NVIDIA API Error", { status: response.status });
     }
 
-    // 4. Return the Stream directly to the frontend
+    // Returns the stream directly to your frontend for real-time typing
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
       },
     });
 
   } catch (e) {
-    console.error("Internal Server Error:", e);
     return new Response("Internal Error", { status: 500 });
   }
-}
 }
