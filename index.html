@@ -12,7 +12,6 @@
             pointer-events: none; z-index: 2147483647 !important;
         }
 
-        /* --- SMOOTH DISCOUNT MODAL --- */
         #exit-modal {
             position: fixed; top: 50%; left: 50%;
             transform: translate(-50%, -45%) scale(0.95);
@@ -35,36 +34,28 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- CHAT BUBBLE WITH CURVED SPIRAL --- */
+        /* --- SPIRAL ICON --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; pointer-events: auto; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-            z-index: 2147483649; /* Higher than window to stay visible during spiral */
-            transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 2147483649;
+            /* Curved path timing function */
+            transition: all 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
         }
 
-        /* Spiral path: uses a combination of rotation and scale to "curve" in */
         #chat-bubble.active-spiral {
             bottom: 597px; 
             right: 343px;
             width: 26px;
             height: 26px;
-            transform: rotate(720deg) scale(0.85); /* Double spin for spiral effect */
+            transform: rotate(720deg);
             box-shadow: none;
-            background: #fff; /* Keep the same icon background */
         }
 
-        #chat-bubble svg {
-            transition: all 0.7s ease;
-        }
-
-        #chat-bubble.active-spiral svg {
-            width: 14px;
-            height: 14px;
-            fill: #000; /* Ensure icon doesn't change color */
-        }
+        #chat-bubble svg { transition: all 0.7s ease; }
+        #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
 
         /* --- CHAT WINDOW --- */
         #chat-window {
@@ -76,15 +67,10 @@
             transition: opacity 0.4s ease;
         }
 
-        #chat-window.open {
-            display: flex;
-            opacity: 1;
-        }
+        #chat-window.open { display: flex; opacity: 1; }
 
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .header-title { display: flex; align-items: center; gap: 10px; }
-        
-        /* The landing spot */
         .icon-dock { width: 26px; height: 26px; border-radius: 50%; }
 
         .header-text b { display: block; font-size: 14px; color: #fff; }
@@ -162,9 +148,20 @@ function closeModal() {
     document.getElementById('exit-modal').classList.remove('active');
 }
 
+// FIXED: Now checks if chat is already open
 function claimOffer() {
     closeModal();
-    toggleChat();
+    const win = document.getElementById('chat-window');
+    const bubble = document.getElementById('chat-bubble');
+    
+    if (!win.classList.contains('open')) {
+        win.style.display = 'flex';
+        setTimeout(() => {
+            win.classList.add('open');
+            bubble.classList.add('active-spiral');
+        }, 10);
+    }
+    
     setGreeting("I see you'd like to receive the 20% OFF offer! Let's get started with your <b>Name</b> and the <b>Service</b> you'd like to receive.");
 }
 
