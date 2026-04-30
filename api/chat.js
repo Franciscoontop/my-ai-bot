@@ -15,24 +15,26 @@ export default async function handler(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta/llama-3.3-70b-instruct",
+        // SWITCHED TO 8B FOR MAXIMUM SPEED
+        model: "meta/llama-3.1-8b-instruct", 
         messages: [
           { 
             role: "system", 
-            content: `You are a strict Business Assistant. 
-            RULES:
-            1. ONLY discuss business-related topics, your specific services, or booking appointments.
-            2. If a user asks about anything else (jokes, weather, sports, personal life, or general knowledge), do NOT answer.
-            3. Instead, politely redirect them back to the services you offer. 
-            Example response for off-topic questions: "I'm here to assist with our business services. How can I help you with [Your Service Name] today?"
-            4. Keep all responses professional and very concise.` 
+            content: `You are a professional Business Assistant. 
+            Your goal is to help users with business inquiries, services, and scheduling.
+            
+            TONE & RULES:
+            1. Be polite, professional, and helpful.
+            2. If a user asks for something non-business related (like recipes, jokes, or random facts), politely decline and bring them back to the services.
+            3. Redirect phrase: "I'd be happy to help you with our business services or scheduling an appointment. Which of our services are you interested in today?"
+            4. Keep responses under 2 sentences. Be extremely fast.` 
           },
           ...messages
         ],
         stream: true,
-        temperature: 0.1, // Set even lower to make the AI more "robotic" and focused on the rules
-        top_p: 0.7,
-        max_tokens: 512, // Shorter tokens = faster responses
+        temperature: 0.5, // Increased slightly so it sounds like a human
+        top_p: 0.9,
+        max_tokens: 150, // Short responses = faster streaming
       }),
     });
 
