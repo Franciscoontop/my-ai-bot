@@ -35,44 +35,56 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- CHAT BUBBLE WITH GENTLE GLOW --- */
+        /* --- CHAT BUBBLE WITH SPIRAL TRANSITION --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; pointer-events: auto; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-            animation: floatBubble 4s ease-in-out infinite, gentleGlow 3s ease-in-out infinite;
+            z-index: 10;
+            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        @keyframes floatBubble { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-12px); } }
-        
-        @keyframes gentleGlow {
-            0%, 100% { box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); }
-            50% { box-shadow: 0 0 25px rgba(255, 255, 255, 0.6); }
+        /* The Spiral Movement Class */
+        #chat-bubble.active-spiral {
+            bottom: 597px; /* Positioned exactly inside the chat header */
+            right: 343px;
+            width: 26px;
+            height: 26px;
+            transform: rotate(360deg);
+            box-shadow: none;
         }
 
-        /* --- CHAT WINDOW WITH SPIRAL ANIMATION --- */
+        #chat-bubble svg {
+            transition: width 0.6s, height 0.6s;
+        }
+
+        #chat-bubble.active-spiral svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* --- CHAT WINDOW --- */
         #chat-window {
             position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px;
             max-height: 80vh; background: #111; border: 1px solid #333; border-radius: 20px;
             display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
             pointer-events: auto; overflow: hidden;
-            /* Spiral Entry Transform Point */
-            transform-origin: bottom right;
+            opacity: 0;
+            transition: opacity 0.3s ease;
         }
 
         #chat-window.open {
             display: flex;
-            animation: spiralIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
-        @keyframes spiralIn {
-            0% { transform: scale(0) rotate(-360deg); opacity: 0; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+            opacity: 1;
         }
 
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .header-title { display: flex; align-items: center; gap: 10px; }
+        
+        /* Placeholder for the icon to "land" in */
+        .icon-dock { width: 26px; height: 26px; }
+
         .header-text b { display: block; font-size: 14px; color: #fff; }
         .header-text span { font-size: 11px; color: #00ff88; }
         
@@ -110,21 +122,17 @@
     </div>
 
     <div id="chat-bubble" onclick="toggleChat()">
-        <svg style="width:30px; height:30px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
+        <svg id="bubble-svg" style="width:30px; height:30px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
     </div>
 
     <div id="chat-window">
         <div id="chat-header">
             <div class="header-title">
-                <div class="avatar ai-avatar">
-                    <svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-                </div>
-                <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
+                <div class="icon-dock"></div> <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
             </div>
             <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
         </div>
-        <div id="response-container">
-            </div>
+        <div id="response-container"></div>
         <div class="input-area">
             <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
             <button class="send-btn" onclick="send()">Send</button>
@@ -153,8 +161,7 @@ function closeModal() {
 
 function claimOffer() {
     closeModal();
-    const win = document.getElementById('chat-window');
-    win.classList.add('open');
+    toggleChat();
     setGreeting("I see you'd like to receive the 20% OFF offer! Let's get started with your <b>Name</b> and the <b>Service</b> you'd like to receive.");
 }
 
@@ -167,7 +174,20 @@ document.addEventListener('mousemove', function(e) {
 
 function toggleChat() {
     const win = document.getElementById('chat-window');
-    win.classList.toggle('open');
+    const bubble = document.getElementById('chat-bubble');
+    
+    if (win.classList.contains('open')) {
+        win.classList.remove('open');
+        bubble.classList.remove('active-spiral');
+        setTimeout(() => { win.style.display = 'none'; }, 300);
+    } else {
+        win.style.display = 'flex';
+        // Small delay to trigger the spiral animation smoothly
+        setTimeout(() => {
+            win.classList.add('open');
+            bubble.classList.add('active-spiral');
+        }, 10);
+    }
 }
 
 async function send() {
