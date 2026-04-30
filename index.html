@@ -85,7 +85,7 @@
         .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; }
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         .thinking-dots::after { content: '...'; display: inline-block; width: 15px; animation: dots 1.5s steps(4, end) infinite; }
@@ -128,23 +128,14 @@
 
 <script>
 /* --- SMART FAQ BUILDER CONTEXT --- */
-// Edit this object to update the AI's "Knowledge Base" instantly.
 const BUSINESS_CONTEXT = {
-    description: "We are a premium AI automation agency. We build custom chatbots and automated workflows for small businesses.",
-    services: ["Custom Chatbot Development", "Workflow Automation", "AI Consulting"],
-    hours: "9 AM - 5 PM EST, Monday to Friday",
+    description: "Premium AI automation agency specializing in custom chatbots and automated workflows.",
     pricing: "Packages start at $500/month.",
-    faq_instruction: "Generate answers based strictly on this information. If asked something you don't know, provide the support email: support@example.com."
+    offer: "20% OFF limited-time discount."
 };
 
 let chatHistory = [];
 let hasPopped = false;
-
-// Initialize chat history with the "Smart Builder" system prompt
-chatHistory.push({ 
-    role: "system", 
-    content: `You are an AI Business Assistant. Here is the latest business info: ${JSON.stringify(BUSINESS_CONTEXT)}. Use this to answer FAQs dynamically.` 
-});
 
 function setGreeting(text) {
     const container = document.getElementById("response-container");
@@ -204,8 +195,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
+    // Add user message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
+    // Create AI bubble with thinking state
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -224,19 +217,27 @@ async function send() {
             body: JSON.stringify({ messages: chatHistory }),
         });
 
+        if (!res.ok) throw new Error("Connection failed");
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         const aiBubble = document.getElementById(aiBubbleId);
 
-        await new Promise(resolve => setTimeout(resolve, 800));
-        aiBubble.innerHTML = ""; 
-
         let fullAIResponse = "";
+        let isFirstChunk = true;
+
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
+
+            if (isFirstChunk) {
+                aiBubble.innerHTML = ""; // Remove thinking dots
+                isFirstChunk = false;
+            }
+
             const chunk = decoder.decode(value);
             const lines = chunk.split("\n");
+
             for (const line of lines) {
                 if (line.startsWith("data: ")) {
                     const dataStr = line.replace("data: ", "").trim();
@@ -253,7 +254,7 @@ async function send() {
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection error.";
+        document.getElementById(aiBubbleId).innerText = "Sorry, I'm having trouble connecting right now.";
     }
 }
 </script>
