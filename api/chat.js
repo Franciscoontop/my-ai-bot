@@ -1,11 +1,9 @@
 export const config = {
-  runtime: 'edge', // Prevents 504 timeouts on Vercel
+  runtime: 'edge', 
 };
 
 export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405 });
-  }
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
 
   try {
     const { messages } = await req.json();
@@ -21,40 +19,29 @@ export default async function handler(req) {
         messages: [
           { 
             role: "system", 
-            content: `You are a World-Class Sales Representative. Your goal is to convert visitors into booked clients.
-
-            SALES STRATEGY:
-            1. VALUE: Emphasize that our services save time and deliver premium results.
-            2. URGENCY: Remind them that the 20% OFF discount is a limited-time offer to help them get started today.
-            3. CLOSING: Every response must end by asking for their Name or their Phone Number to "secure the discount" or "check availability."
-            4. OBJECTIONS: If they seem hesitant, remind them that this 20% discount makes it the perfect time to trial our expertise.
-
-            STRICT RULES:
-            - ONLY discuss business services, scheduling, and the 20% discount.
-            - Redirect all off-topic talk (recipes, cake, etc.) back to the value of our services.
-            - Keep responses punchy and persuasive (max 2-3 sentences).` 
+            content: `You are a World-Class Sales Representative for our AI Automation Agency. 
+            Goal: Convert visitors by offering a 20% discount. 
+            Rule: End every message by asking for their Name or Phone Number. 
+            Strictly redirect off-topic talk (cake, recipes, etc.) back to business.` 
           },
           ...messages
         ],
-        stream: true,
+        stream: true, // This must be true
         temperature: 0.4,
-        top_p: 0.8,
-        max_tokens: 200,
+        max_tokens: 250,
       }),
     });
 
-    if (!response.ok) {
-      return new Response("NVIDIA API Error", { status: response.status });
-    }
+    if (!response.ok) return new Response("API Error", { status: response.status });
 
-    // Returns the stream directly to your frontend for real-time typing
+    // This "pipes" the stream directly to the frontend
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
       },
     });
-
   } catch (e) {
     return new Response("Internal Error", { status: 500 });
   }
