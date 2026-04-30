@@ -35,33 +35,35 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- CHAT BUBBLE WITH SPIRAL TRANSITION --- */
+        /* --- CHAT BUBBLE WITH CURVED SPIRAL --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; pointer-events: auto; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-            z-index: 10;
-            transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2147483649; /* Higher than window to stay visible during spiral */
+            transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* The Spiral Movement Class */
+        /* Spiral path: uses a combination of rotation and scale to "curve" in */
         #chat-bubble.active-spiral {
-            bottom: 597px; /* Positioned exactly inside the chat header */
+            bottom: 597px; 
             right: 343px;
             width: 26px;
             height: 26px;
-            transform: rotate(360deg);
+            transform: rotate(720deg) scale(0.85); /* Double spin for spiral effect */
             box-shadow: none;
+            background: #fff; /* Keep the same icon background */
         }
 
         #chat-bubble svg {
-            transition: width 0.6s, height 0.6s;
+            transition: all 0.7s ease;
         }
 
         #chat-bubble.active-spiral svg {
             width: 14px;
             height: 14px;
+            fill: #000; /* Ensure icon doesn't change color */
         }
 
         /* --- CHAT WINDOW --- */
@@ -71,7 +73,7 @@
             display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
             pointer-events: auto; overflow: hidden;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: opacity 0.4s ease;
         }
 
         #chat-window.open {
@@ -82,8 +84,8 @@
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .header-title { display: flex; align-items: center; gap: 10px; }
         
-        /* Placeholder for the icon to "land" in */
-        .icon-dock { width: 26px; height: 26px; }
+        /* The landing spot */
+        .icon-dock { width: 26px; height: 26px; border-radius: 50%; }
 
         .header-text b { display: block; font-size: 14px; color: #fff; }
         .header-text span { font-size: 11px; color: #00ff88; }
@@ -128,7 +130,8 @@
     <div id="chat-window">
         <div id="chat-header">
             <div class="header-title">
-                <div class="icon-dock"></div> <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
+                <div class="icon-dock"></div> 
+                <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
             </div>
             <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
         </div>
@@ -179,10 +182,9 @@ function toggleChat() {
     if (win.classList.contains('open')) {
         win.classList.remove('open');
         bubble.classList.remove('active-spiral');
-        setTimeout(() => { win.style.display = 'none'; }, 300);
+        setTimeout(() => { win.style.display = 'none'; }, 400);
     } else {
         win.style.display = 'flex';
-        // Small delay to trigger the spiral animation smoothly
         setTimeout(() => {
             win.classList.add('open');
             bubble.classList.add('active-spiral');
