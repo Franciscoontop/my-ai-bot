@@ -15,21 +15,29 @@ export default async function handler(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta/llama-3.3-70b-instruct", // Fast & Reliable
+        model: "meta/llama-3.3-70b-instruct",
         messages: [
-          { role: "system", content: "You are a concise business assistant. Keep answers short." },
+          { 
+            role: "system", 
+            content: `You are a strict Business Assistant. 
+            RULES:
+            1. ONLY discuss business-related topics, your specific services, or booking appointments.
+            2. If a user asks about anything else (jokes, weather, sports, personal life, or general knowledge), do NOT answer.
+            3. Instead, politely redirect them back to the services you offer. 
+            Example response for off-topic questions: "I'm here to assist with our business services. How can I help you with [Your Service Name] today?"
+            4. Keep all responses professional and very concise.` 
+          },
           ...messages
         ],
         stream: true,
-        temperature: 0.2, // Lower temperature is faster to process
+        temperature: 0.1, // Set even lower to make the AI more "robotic" and focused on the rules
         top_p: 0.7,
-        max_tokens: 1024,
+        max_tokens: 512, // Shorter tokens = faster responses
       }),
     });
 
     if (!response.ok) return new Response("NVIDIA API Error", { status: response.status });
 
-    // Stream the response back immediately
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
