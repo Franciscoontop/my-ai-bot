@@ -49,7 +49,7 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- RESTORED CHAT BUBBLE & GLOW --- */
+        /* --- CHAT BUBBLE & FLOATING --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
@@ -72,7 +72,7 @@
             50% { transform: translateY(-12px); }
         }
 
-        /* --- RESTORED CHAT WINDOW LAYOUT --- */
+        /* --- CHAT WINDOW LAYOUT --- */
         #chat-window {
             position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px;
             max-height: 80vh; background: #111; border: 1px solid #333; border-radius: 20px;
@@ -99,6 +99,22 @@
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         
+        /* Thinking Animation */
+        .thinking-dots::after {
+            content: '...';
+            display: inline-block;
+            width: 15px;
+            text-align: left;
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80% { content: '...'; }
+        }
+
         .lead-captured { background: rgba(0, 255, 136, 0.1); border: 1px dashed #00ff88; color: #00ff88; font-size: 12px; padding: 10px; text-align: center; border-radius: 10px; margin: 10px 0; }
 
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
@@ -152,12 +168,10 @@ let chatHistory = [];
 let leadTracker = { isSent: false };
 let hasPopped = false;
 
-// MODAL CONTROLS
 function closeModal() {
     document.getElementById('exit-modal').classList.remove('active');
 }
 
-// EXIT INTENT
 document.addEventListener('mousemove', function(e) {
     if (e.clientY < 10 && !hasPopped) {
         document.getElementById('exit-modal').classList.add('active');
@@ -165,13 +179,11 @@ document.addEventListener('mousemove', function(e) {
     }
 });
 
-// CHAT TOGGLE
 function toggleChat() {
     const win = document.getElementById('chat-window');
     win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
 }
 
-// RESTORED FULL AI SEND LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
@@ -181,7 +193,12 @@ async function send() {
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
     const aiBubbleId = "ai-" + Date.now();
-    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div></div>`;
+    // Start with "Thinking" and animated dots
+    container.innerHTML += `
+        <div class="message-row ai-row">
+            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
+            <div id="${aiBubbleId}" class="msg-bubble ai-msg"><span class="thinking-dots">Thinking</span></div>
+        </div>`;
     
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
@@ -197,6 +214,9 @@ async function send() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         const aiBubble = document.getElementById(aiBubbleId);
+
+        // DELAY: Wait 1 second to simulate thinking
+        await new Promise(resolve => setTimeout(resolve, 1000));
         aiBubble.innerHTML = ""; 
 
         let fullAIResponse = "";
@@ -226,7 +246,6 @@ async function send() {
     }
 }
 
-// RESTORED LEAD CAPTURE
 function extractAndSendLead(userText, fullAIResponse, container) {
     const phoneRegex = /(\d{3}[-\s.]?\d{3}[-\s.]?\d{4})|(\(\d{3}\)\s?\d{3}[-\s.]?\d{4})/;
     const combinedLog = (userText + " " + fullAIResponse).toLowerCase();
@@ -234,7 +253,8 @@ function extractAndSendLead(userText, fullAIResponse, container) {
 
     if (foundPhone && !leadTracker.isSent) {
         leadTracker.isSent = true; 
-        const namePart = chatHistory.find(m => m.role === "user").content.split(' ')[0];
+        const userMsg = chatHistory.find(m => m.role === "user");
+        const namePart = userMsg ? userMsg.content.split(' ')[0] : "Customer";
         const finalName = namePart.charAt(0).toUpperCase() + namePart.slice(1).toLowerCase();
 
         fetch("https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/", {
