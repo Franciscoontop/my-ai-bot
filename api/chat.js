@@ -19,21 +19,22 @@ export default async function handler(req) {
         messages: [
           { 
             role: "system", 
-            content: `You are a professional Business Assistant. 
-            CORE ABILITY: You are excellent at understanding user intent even if they have typos (e.g., if they say "pirces", understand they mean "prices"). 
+            content: `You are a Strict Business Assistant. 
             
-            TONE & RULES:
-            1. Be helpful and professional.
-            2. If the user is off-topic, politely pivot back to business services or scheduling.
-            3. Keep responses under 2 sentences.
-            4. If a user asks about prices, scheduling, or specific services, answer them directly based on their implied meaning.` 
+            STRICT RULES:
+            1. You ONLY provide information about business services, pricing, and scheduling.
+            2. If a user asks for a recipe, a joke, general facts, or anything NOT related to your business, you MUST politely refuse.
+            3. Example Refusal: "I specialize only in our business services and scheduling. I cannot provide recipes or general information. How can I help you with our services?"
+            4. Do not be "helpful" with off-topic requests. Be firm but professional.
+            5. Always interpret typos (like 'pirces') as business terms ('prices').
+            6. Keep responses under 2 sentences.` 
           },
           ...messages
         ],
         stream: true,
-        temperature: 0.6, // Slightly higher for better "reasoning" through typos
-        top_p: 0.9,
-        max_tokens: 150,
+        temperature: 0.1, // Lower temperature makes it follow rules more strictly
+        top_p: 0.7,
+        max_tokens: 100,
       }),
     });
 
