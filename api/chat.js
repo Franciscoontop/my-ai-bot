@@ -3,11 +3,18 @@ export const config = {
 };
 
 export default async function handler(req) {
-  // Guard against non-POST requests
-  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+  // 1. Guard against non-POST requests
+  if (req.method !== 'POST') {
+    return new Response('Method Not Allowed', { status: 405 });
+  }
 
   try {
     const { messages } = await req.json();
+
+    // 2. Validate input to prevent sending empty arrays to NVIDIA
+    if (!messages || messages.length === 0) {
+      return new Response("No messages provided", { status: 400 });
+    }
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
@@ -23,35 +30,37 @@ export default async function handler(req) {
             content: `You are a World-Class Sales Representative for our AI Automation Agency. 
             Goal: Convert visitors by offering a 20% discount. 
             Rule: End every message by asking for their Name or Phone Number. 
-            Strictly redirect off-topic talk (cake, recipes, etc.) back to business.` 
+            Strictly redirect off-topic talk back to business.` 
           },
           ...messages
         ],
         stream: true, 
         temperature: 0.4,
-        max_tokens: 250,
+        max_tokens: 500, // Increased slightly for more detailed sales pitches
       }),
     });
 
-    // If NVIDIA returns an error (like an invalid API key), this catches it
+    // 3. Robust Error Handling
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("NVIDIA API Error:", errorText);
-        return new Response(`API Error: ${response.status}`, { status: response.status });
+      const errorData = await response.text();
+      console.error("NVIDIA API Error:", errorData);
+      return new Response(`NVIDIA API Error: ${response.status}`, { status: response.status });
     }
 
-    // The "Magic" headers that fix 504 timeouts and streaming issues
+    // 4. Enhanced Streaming Headers
+    // 'no-transform' and 'chunked' encoding are vital for preventing Vercel from timing out
     return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
-        "Connection": "keep-alive",
         "X-Content-Type-Options": "nosniff",
+        "Connection": "keep-alive",
+        "Transfer-Encoding": "chunked",
       },
     });
 
   } catch (e) {
-    console.error("Internal Server Error:", e);
-    return new Response("Internal Error", { status: 500 });
+    console.error("Internal Server Error:", e.message);
+    return new Response(`Server Error: ${e.message}`, { status: 500 });
   }
 }
