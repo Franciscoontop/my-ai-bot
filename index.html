@@ -67,7 +67,7 @@
         .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; }
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         .thinking-dots::after { content: '...'; display: inline-block; width: 15px; animation: dots 1.5s steps(4, end) infinite; }
@@ -178,20 +178,22 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // Add User Message UI
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Add AI "Thinking" Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
             <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
-            <div id="${aiBubbleId}" class="msg-bubble ai-msg"><span class="thinking-dots">Thinking</span></div>
+            <div id="${aiBubbleId}" class="msg-bubble ai-msg">...</div>
         </div>`;
     
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
+
+    const aiBubble = document.getElementById(aiBubbleId);
+    let fullAIResponse = "";
+    let buffer = ""; 
 
     try {
         const res = await fetch("/api/chat", {
@@ -204,44 +206,43 @@ async function send() {
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        const aiBubble = document.getElementById(aiBubbleId);
-        let fullAIResponse = "";
-        let isFirstChunk = true;
+        aiBubble.innerText = ""; // Clear the "..."
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            // Use {stream: true} to correctly handle characters split across chunks
-            const chunk = decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
             
-            if (isFirstChunk) { 
-                aiBubble.innerHTML = ""; 
-                isFirstChunk = false; 
-            }
+            // Look for "data: " lines in the buffer
+            const lines = buffer.split("\n");
+            // Keep the last line in the buffer in case it's a partial JSON string
+            buffer = lines.pop(); 
 
-            // Process SSE formatted data
-            const lines = chunk.split("\n");
             for (const line of lines) {
                 const trimmed = line.trim();
                 if (!trimmed || trimmed === "data: [DONE]") continue;
 
                 if (trimmed.startsWith("data: ")) {
                     try {
-                        const data = JSON.parse(trimmed.replace("data: ", ""));
+                        const jsonStr = trimmed.replace("data: ", "");
+                        const data = JSON.parse(jsonStr);
                         const content = data.choices[0].delta.content || "";
-                        aiBubble.innerHTML += content; // Smooth typing update
+                        
+                        // ChatGPT style: Append text immediately
+                        aiBubble.innerText += content;
                         fullAIResponse += content;
                         container.scrollTop = container.scrollHeight;
                     } catch (e) {
-                        // Ignore partial JSON blocks
+                        // If JSON fails, add it back to buffer to try with next chunk
+                        buffer = line + "\n" + buffer;
                     }
                 }
             }
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection lost. Please try again.";
+        aiBubble.innerText = "Connection lost. Please try again.";
     }
 }
 
