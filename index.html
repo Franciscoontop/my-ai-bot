@@ -127,11 +127,13 @@
 </div>
 
 <script>
-/* --- SMART FAQ BUILDER CONTEXT --- */
+/* --- MANAGED CONTENT UPDATES --- */
+// Update these values to instantly change what the AI knows.
 const BUSINESS_CONTEXT = {
     description: "Premium AI automation agency specializing in custom chatbots and automated workflows.",
     pricing: "Packages start at $500/month.",
-    offer: "20% OFF limited-time discount."
+    offer: "20% OFF limited-time discount.",
+    contact_email: "support@example.com"
 };
 
 let chatHistory = [];
@@ -163,7 +165,7 @@ function claimOffer() {
             bubble.classList.add('active-spiral');
         }, 10);
     }
-    setGreeting("I see you'd like to receive the 20% OFF offer! Let's get started with your <b>Name</b> and the <b>Service</b> you'd like to receive.");
+    setGreeting(`I see you'd like to receive the ${BUSINESS_CONTEXT.offer}! Let's get started with your <b>Name</b>.`);
 }
 
 document.addEventListener('mousemove', function(e) {
@@ -195,10 +197,8 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // Add user message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Create AI bubble with thinking state
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -210,11 +210,19 @@ async function send() {
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
 
+    // We inject the BUSINESS_CONTEXT as a system message to keep the AI updated.
+    const systemPrompt = {
+        role: "system",
+        content: `You are an AI Business Assistant. Context: ${JSON.stringify(BUSINESS_CONTEXT)}. Be helpful, professional, and try to convert users into leads.`
+    };
+
     try {
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: chatHistory }),
+            body: JSON.stringify({ 
+                messages: [systemPrompt, ...chatHistory] 
+            }),
         });
 
         if (!res.ok) throw new Error("Connection failed");
@@ -231,7 +239,7 @@ async function send() {
             if (done) break;
 
             if (isFirstChunk) {
-                aiBubble.innerHTML = ""; // Remove thinking dots
+                aiBubble.innerHTML = ""; 
                 isFirstChunk = false;
             }
 
