@@ -109,56 +109,31 @@
 </div>
 
 <script>
-/* --- GOOGLE SHEETS LIVE DATA --- */
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
-
 let BUSINESS_CONTEXT = {}; 
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. Improved fetch logic with Cache Busting and Smart Parsing
 async function fetchSheetData() {
     try {
-        // Append unique timestamp to URL to bypass Google's cache
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
-        
         const lines = csvText.split('\n');
         lines.forEach(line => {
             const firstCommaIndex = line.indexOf(',');
             if (firstCommaIndex !== -1) {
-                let key = line.substring(0, firstCommaIndex).trim();
-                let value = line.substring(firstCommaIndex + 1).trim();
-
-                // Clean keys: remove quotes, colons, and convert to lowercase
-                key = key.replace(/[:",]/g, '').toLowerCase(); 
-                // Clean values: remove outer quotes
-                value = value.replace(/^["']|["']$/g, '').trim();
-
-                if (key && value) {
-                    BUSINESS_CONTEXT[key] = value;
-                }
+                let key = line.substring(0, firstCommaIndex).trim().replace(/[:",]/g, '').toLowerCase();
+                let value = line.substring(firstCommaIndex + 1).trim().replace(/^["']|["']$/g, '').trim();
+                if (key && value) BUSINESS_CONTEXT[key] = value;
             }
         });
-        
-        // Update UI components once data is ready
         if(BUSINESS_CONTEXT.offer) {
-            const modalOffer = document.getElementById('modal-offer-text');
-            if(modalOffer) modalOffer.innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
-            
-            // Push the live greeting immediately
-            setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer}</b> today. What is your name and how can I help you?`);
+            document.getElementById('modal-offer-text').innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
+            setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer}</b> today. What is your name?`);
         }
-        
-        console.log("✅ AI Knowledge Synchronized:", BUSINESS_CONTEXT);
     } catch (err) {
-        console.error("❌ Sheet sync failed, using internal defaults.");
-        BUSINESS_CONTEXT = {
-            description: "Premium AI agency.",
-            pricing: "Starts at $500/mo.",
-            offer: "20% OFF"
-        };
-        setGreeting(`Hi! I'm your AI Assistant. How can I help you today?`);
+        BUSINESS_CONTEXT = { description: "AI Agency", pricing: "Contact us", offer: "20% OFF" };
+        setGreeting(`Hi! I'm your AI Assistant. How can I help you?`);
     }
 }
 
@@ -171,22 +146,6 @@ function setGreeting(text) {
         </div>`;
 }
 
-function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-
-function claimOffer() {
-    closeModal();
-    const win = document.getElementById('chat-window');
-    if (!win.classList.contains('open')) toggleChat();
-    setGreeting(`I see you'd like to claim our <b>${BUSINESS_CONTEXT.offer || 'special discount'}</b>! Let's get started with your <b>Name</b>.`);
-}
-
-document.addEventListener('mousemove', (e) => {
-    if (e.clientY < 10 && !hasPopped) {
-        document.getElementById('exit-modal').classList.add('active');
-        hasPopped = true;
-    }
-});
-
 function toggleChat() {
     const win = document.getElementById('chat-window');
     const bubble = document.getElementById('chat-bubble');
@@ -196,12 +155,22 @@ function toggleChat() {
         setTimeout(() => { win.style.display = 'none'; }, 400);
     } else {
         win.style.display = 'flex';
-        setTimeout(() => {
-            win.classList.add('open');
-            bubble.classList.add('active-spiral');
-        }, 10);
+        setTimeout(() => { win.classList.add('open'); bubble.classList.add('active-spiral'); }, 10);
     }
 }
+
+function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
+function claimOffer() { 
+    closeModal(); 
+    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (e.clientY < 10 && !hasPopped) {
+        document.getElementById('exit-modal').classList.add('active');
+        hasPopped = true;
+    }
+});
 
 async function send() {
     const input = document.getElementById("msg");
@@ -221,19 +190,19 @@ async function send() {
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
 
-    const systemPrompt = {
-        role: "system",
-        content: `You are an AI Sales Assistant. Context: ${JSON.stringify(BUSINESS_CONTEXT)}. Be helpful, professional, and focus on securing a lead.`
-    };
-
     try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s limit
+
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: [systemPrompt, ...chatHistory] }),
+            body: JSON.stringify({ messages: chatHistory }),
+            signal: controller.signal
         });
 
-        if (!res.ok) throw new Error("Connection failed");
+        clearTimeout(timeoutId);
+        if (!res.ok) throw new Error();
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
@@ -259,17 +228,24 @@ async function send() {
                         fullAIResponse += content;
                         container.scrollTop = container.scrollHeight;
                     } catch (e) {}
+                } else if (line.trim().startsWith("{")) { 
+                    // Handle non-SSE formatted JSON chunks from some providers
+                    try {
+                        const data = JSON.parse(line.trim());
+                        const content = data.choices[0].delta.content || "";
+                        aiBubble.innerHTML += content;
+                        fullAIResponse += content;
+                    } catch(e) {}
                 }
             }
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
+        document.getElementById(aiBubbleId).innerText = "Connection lost. Please try again.";
     }
 }
 
-// Kick off the data fetch
 fetchSheetData();
 </script>
 </body>
-</html> 
+</html>
