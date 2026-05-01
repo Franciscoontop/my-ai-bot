@@ -34,48 +34,30 @@
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
 
-        /* --- ENHANCED SMOOTH SPIRAL --- */
         #chat-bubble {
             position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
             background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
             cursor: pointer; pointer-events: auto; 
             box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
             z-index: 2147483649;
-            transition: 
-                bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
-                right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1),
-                width 0.5s ease,
-                height 0.5s ease,
-                transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-                box-shadow 0.3s ease;
+            transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.5s ease, height 0.5s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
         }
 
-        #chat-bubble.active-spiral {
-            bottom: 597px; 
-            right: 343px;
-            width: 26px;
-            height: 26px;
-            transform: rotate(720deg);
-            box-shadow: none;
-        }
-
+        #chat-bubble.active-spiral { bottom: 597px; right: 343px; width: 26px; height: 26px; transform: rotate(720deg); box-shadow: none; }
         #chat-bubble svg { transition: all 0.6s ease; }
         #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
 
-        /* --- CHAT WINDOW --- */
         #chat-window {
             position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px;
             max-height: 80vh; background: #111; border: 1px solid #333; border-radius: 20px;
             display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
-            pointer-events: auto; overflow: hidden;
-            opacity: 0;
-            transition: opacity 0.5s ease;
+            pointer-events: auto; overflow: hidden; opacity: 0; transition: opacity 0.5s ease;
         }
 
         #chat-window.open { display: flex; opacity: 1; }
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
         .header-title { display: flex; align-items: center; gap: 10px; }
-        .icon-dock { width: 26px; height: 26px; border-radius: 50%; }
+        .icon-dock { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
         .header-text b { display: block; font-size: 14px; color: #fff; }
         .header-text span { font-size: 11px; color: #00ff88; }
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; }
@@ -100,7 +82,7 @@
 <div id="ai-widget-wrapper">
     <div id="exit-modal">
         <div class="modal-offer">Wait! Before you go... 🎁</div>
-        <div class="modal-text">Take <b>20% OFF</b> your next order!</div>
+        <div class="modal-text" id="modal-offer-text">Take <b>20% OFF</b> your next order!</div>
         <div class="promo-code">NEXT20</div>
         <button class="close-modal-btn" onclick="claimOffer()">Claim Discount</button>
         <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Dismiss</p>
@@ -127,17 +109,42 @@
 </div>
 
 <script>
-/* --- MANAGED CONTENT UPDATES --- */
-// Update these values to instantly change what the AI knows.
-const BUSINESS_CONTEXT = {
-    description: "Premium AI automation agency specializing in custom chatbots and automated workflows.",
-    pricing: "Packages start at $500/month.",
-    offer: "20% OFF limited-time discount.",
-    contact_email: "support@example.com"
-};
+/* --- GOOGLE SHEETS LIVE DATA --- */
+const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
 
+let BUSINESS_CONTEXT = {}; 
 let chatHistory = [];
 let hasPopped = false;
+
+// 1. Fetch live data from your Google Sheet
+async function fetchSheetData() {
+    try {
+        const response = await fetch(PUBLISHED_SHEET_URL);
+        const csvText = await response.text();
+        
+        const rows = csvText.split('\n').map(row => row.split(','));
+        rows.forEach(row => {
+            if (row[0] && row[1]) {
+                const key = row[0].trim().replace(/^"|"$/g, '');
+                const value = row[1].trim().replace(/^"|"$/g, '');
+                BUSINESS_CONTEXT[key] = value;
+            }
+        });
+        
+        // Update Modal UI with live sheet data if available
+        if(BUSINESS_CONTEXT.offer) {
+            document.getElementById('modal-offer-text').innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
+        }
+        console.log("✅ AI Knowledge Synchronized:", BUSINESS_CONTEXT);
+    } catch (err) {
+        console.error("❌ Sheet sync failed, using internal defaults.");
+        BUSINESS_CONTEXT = {
+            description: "Premium AI agency.",
+            pricing: "Starts at $500/mo.",
+            offer: "20% OFF"
+        };
+    }
+}
 
 function setGreeting(text) {
     const container = document.getElementById("response-container");
@@ -148,27 +155,16 @@ function setGreeting(text) {
         </div>`;
 }
 
-setGreeting("Hi! What's your <b>Name</b> and which <b>Service</b> can I help you with today?");
-
-function closeModal() {
-    document.getElementById('exit-modal').classList.remove('active');
-}
+function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
 
 function claimOffer() {
     closeModal();
     const win = document.getElementById('chat-window');
-    const bubble = document.getElementById('chat-bubble');
-    if (!win.classList.contains('open')) {
-        win.style.display = 'flex';
-        setTimeout(() => {
-            win.classList.add('open');
-            bubble.classList.add('active-spiral');
-        }, 10);
-    }
-    setGreeting(`I see you'd like to receive the ${BUSINESS_CONTEXT.offer}! Let's get started with your <b>Name</b>.`);
+    if (!win.classList.contains('open')) toggleChat();
+    setGreeting(`I see you'd like to claim our <b>${BUSINESS_CONTEXT.offer || 'special discount'}</b>! Let's get started with your <b>Name</b>.`);
 }
 
-document.addEventListener('mousemove', function(e) {
+document.addEventListener('mousemove', (e) => {
     if (e.clientY < 10 && !hasPopped) {
         document.getElementById('exit-modal').classList.add('active');
         hasPopped = true;
@@ -198,7 +194,6 @@ async function send() {
     if (!userText) return;
 
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
-    
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -210,19 +205,16 @@ async function send() {
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
 
-    // We inject the BUSINESS_CONTEXT as a system message to keep the AI updated.
     const systemPrompt = {
         role: "system",
-        content: `You are an AI Business Assistant. Context: ${JSON.stringify(BUSINESS_CONTEXT)}. Be helpful, professional, and try to convert users into leads.`
+        content: `You are an AI Sales Assistant. Context: ${JSON.stringify(BUSINESS_CONTEXT)}. Be helpful, professional, and focus on securing a lead.`
     };
 
     try {
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                messages: [systemPrompt, ...chatHistory] 
-            }),
+            body: JSON.stringify({ messages: [systemPrompt, ...chatHistory] }),
         });
 
         if (!res.ok) throw new Error("Connection failed");
@@ -230,22 +222,16 @@ async function send() {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         const aiBubble = document.getElementById(aiBubbleId);
-
         let fullAIResponse = "";
         let isFirstChunk = true;
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
-            if (isFirstChunk) {
-                aiBubble.innerHTML = ""; 
-                isFirstChunk = false;
-            }
+            if (isFirstChunk) { aiBubble.innerHTML = ""; isFirstChunk = false; }
 
             const chunk = decoder.decode(value);
             const lines = chunk.split("\n");
-
             for (const line of lines) {
                 if (line.startsWith("data: ")) {
                     const dataStr = line.replace("data: ", "").trim();
@@ -262,9 +248,14 @@ async function send() {
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Sorry, I'm having trouble connecting right now.";
+        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
     }
 }
+
+// Initializing the app
+fetchSheetData().then(() => {
+    setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer || 'special'}</b> today. What is your name and how can I help you?`);
+});
 </script>
 </body>
 </html>
