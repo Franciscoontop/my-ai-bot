@@ -116,25 +116,40 @@ let BUSINESS_CONTEXT = {};
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. Fetch live data from your Google Sheet
+// 1. Improved fetch logic with Cache Busting and Smart Parsing
 async function fetchSheetData() {
     try {
-        const response = await fetch(PUBLISHED_SHEET_URL);
+        // Append unique timestamp to URL to bypass Google's cache
+        const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
         
-        const rows = csvText.split('\n').map(row => row.split(','));
-        rows.forEach(row => {
-            if (row[0] && row[1]) {
-                const key = row[0].trim().replace(/^"|"$/g, '');
-                const value = row[1].trim().replace(/^"|"$/g, '');
-                BUSINESS_CONTEXT[key] = value;
+        const lines = csvText.split('\n');
+        lines.forEach(line => {
+            const firstCommaIndex = line.indexOf(',');
+            if (firstCommaIndex !== -1) {
+                let key = line.substring(0, firstCommaIndex).trim();
+                let value = line.substring(firstCommaIndex + 1).trim();
+
+                // Clean keys: remove quotes, colons, and convert to lowercase
+                key = key.replace(/[:",]/g, '').toLowerCase(); 
+                // Clean values: remove outer quotes
+                value = value.replace(/^["']|["']$/g, '').trim();
+
+                if (key && value) {
+                    BUSINESS_CONTEXT[key] = value;
+                }
             }
         });
         
-        // Update Modal UI with live sheet data if available
+        // Update UI components once data is ready
         if(BUSINESS_CONTEXT.offer) {
-            document.getElementById('modal-offer-text').innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
+            const modalOffer = document.getElementById('modal-offer-text');
+            if(modalOffer) modalOffer.innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
+            
+            // Push the live greeting immediately
+            setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer}</b> today. What is your name and how can I help you?`);
         }
+        
         console.log("✅ AI Knowledge Synchronized:", BUSINESS_CONTEXT);
     } catch (err) {
         console.error("❌ Sheet sync failed, using internal defaults.");
@@ -143,6 +158,7 @@ async function fetchSheetData() {
             pricing: "Starts at $500/mo.",
             offer: "20% OFF"
         };
+        setGreeting(`Hi! I'm your AI Assistant. How can I help you today?`);
     }
 }
 
@@ -252,10 +268,8 @@ async function send() {
     }
 }
 
-// Initializing the app
-fetchSheetData().then(() => {
-    setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer || 'special'}</b> today. What is your name and how can I help you?`);
-});
+// Kick off the data fetch
+fetchSheetData();
 </script>
 </body>
-</html>
+</html> 
