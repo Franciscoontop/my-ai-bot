@@ -3,6 +3,7 @@ export const config = {
 };
 
 export default async function handler(req) {
+  // Guard against non-POST requests
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
 
   try {
@@ -26,23 +27,31 @@ export default async function handler(req) {
           },
           ...messages
         ],
-        stream: true, // This must be true
+        stream: true, 
         temperature: 0.4,
         max_tokens: 250,
       }),
     });
 
-    if (!response.ok) return new Response("API Error", { status: response.status });
+    // If NVIDIA returns an error (like an invalid API key), this catches it
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("NVIDIA API Error:", errorText);
+        return new Response(`API Error: ${response.status}`, { status: response.status });
+    }
 
-    // This "pipes" the stream directly to the frontend
+    // The "Magic" headers that fix 504 timeouts and streaming issues
     return new Response(response.body, {
       headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-cache, no-transform",
         "Connection": "keep-alive",
+        "X-Content-Type-Options": "nosniff",
       },
     });
+
   } catch (e) {
+    console.error("Internal Server Error:", e);
     return new Response("Internal Error", { status: 500 });
   }
 }
