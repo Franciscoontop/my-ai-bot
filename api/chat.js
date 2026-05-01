@@ -1,6 +1,6 @@
-// 1. Critical change: Increase the allowed duration and switch to nodejs runtime
+// 1. Set the maximum duration for the serverless function
 export const config = {
-  maxDuration: 60, 
+  maxDuration: 60,
 };
 
 export default async function handler(req, res) {
@@ -24,52 +24,58 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta/llama-3.1-8b-instruct", 
+        model: "meta/llama-3.1-8b-instruct",
         messages: [
-          { 
-            role: "system", 
-            content: `You are a World-Class Sales Representative for our AI Automation Agency. 
-            Goal: Convert visitors by offering a 20% discount. 
-            Rule: End every message by asking for their Name or Phone Number. 
-            Strictly redirect off-topic talk back to business.` 
+          {
+            role: "system",
+            content: "You are a World-Class Sales Representative for our AI Automation Agency. Goal: Convert visitors by offering a 20% discount. Rule: End every message by asking for their Name or Phone Number. Strictly redirect off-topic talk back to business."
           },
           ...messages
         ],
-        stream: true, 
+        stream: true,
         temperature: 0.4,
         max_tokens: 500,
       }),
     });
 
-    // Handle NVIDIA API Errors
+    // Handle NVIDIA API Errors immediately
     if (!response.ok) {
       const errorData = await response.text();
       console.error("NVIDIA API Error:", errorData);
       return res.status(response.status).json({ error: "NVIDIA API Error" });
     }
 
-    // 2. Set the proper streaming headers for the Node.js runtime
+    // 2. Critical Headers: This tells the browser and Vercel to stream the response
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Connection', 'keep-alive');
 
-    // 3. Pipe the stream from NVIDIA directly to your frontend
+    // 3. The Pipe: Read chunks from NVIDIA and write them directly to the response
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      
-      // Send the raw data chunk to the browser
+
+      // Write the raw buffer directly to the response object.
+      // This ensures the word-by-word streaming is preserved.
       res.write(value);
+      
+      // If the response is large, this flushes the node buffer
+      if (typeof res.flush === 'function') {
+        res.flush();
+      }
     }
 
     res.end();
 
   } catch (e) {
     console.error("Internal Server Error:", e.message);
-    return res.status(500).json({ error: e.message });
+    // If headers haven't been sent yet, we can send a 500
+    if (!res.headersSent) {
+      return res.status(500).json({ error: e.message });
+    }
+    res.end();
   }
 }
