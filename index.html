@@ -128,7 +128,7 @@ let BUSINESS_CONTEXT = {};
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. DATA INITIALIZATION & PERSONA LOADING
+// 1. DATA INITIALIZATION
 async function fetchSheetData() {
     try {
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
@@ -145,10 +145,7 @@ async function fetchSheetData() {
         });
 
         const currentOffer = BUSINESS_CONTEXT.offer || "exclusive demo";
-        const founderName = BUSINESS_CONTEXT.founder || "our lead strategist";
-        
         document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
-        
         setGreeting(`Hi! I'm the AI Assistant for ${BUSINESS_CONTEXT.description || 'our agency'}. We’re currently offering a <b>${currentOffer}</b>. How can I help you scale today?`);
         
     } catch (err) {
@@ -166,7 +163,7 @@ function setGreeting(text) {
         </div>`;
 }
 
-// 2. UI & MODAL LOGIC
+// 2. UI LOGIC
 function toggleChat() {
     const win = document.getElementById('chat-window');
     const bubble = document.getElementById('chat-bubble');
@@ -184,12 +181,8 @@ function toggleChat() {
 }
 
 function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-function claimOffer() { 
-    closeModal(); 
-    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); 
-}
+function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
 
-// Exit Intent Trigger
 document.addEventListener('mousemove', (e) => {
     if (e.clientY < 10 && !hasPopped) {
         document.getElementById('exit-modal').classList.add('active');
@@ -197,7 +190,7 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-// 3. STABLE COMMUNICATION LOGIC
+// 3. COMMUNICATION LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
@@ -217,23 +210,22 @@ async function send() {
             </div>
         </div>`;
     
-    chatHistory.push({ role: "user", content: userText });
-    input.value = ""; 
-    container.scrollTop = container.scrollHeight;
-
-    // --- NEW: ZAPIER LEAD CAPTURE DIRECTLY IN FRONTEND ---
-    const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
-    if (isLead) {
+    // --- OPTIMAL LEAD CAPTURE: SENDS IMMEDIATELY TO ZAPIER ---
+    if (userText.length > 3) {
         fetch(ZAPIER_URL, {
             method: "POST",
+            mode: "no-cors",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 lead_info: userText,
                 chat_history: chatHistory.map(m => `${m.role}: ${m.content}`).join("\n")
             })
-        }).catch(err => console.error("Zapier Background Error:", err));
+        }).catch(err => console.log("Zapier sync active..."));
     }
-    // -----------------------------------------------------
+
+    chatHistory.push({ role: "user", content: userText });
+    input.value = ""; 
+    container.scrollTop = container.scrollHeight;
 
     try {
         const response = await fetch("/api/chat", {
@@ -241,7 +233,7 @@ async function send() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 messages: [
-                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description}. Always ask for contact info.` },
+                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description}. Aggressively ask for contact info to book calls.` },
                     ...chatHistory
                 ] 
             })
@@ -259,35 +251,28 @@ async function send() {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-
             const chunk = decoder.decode(value);
-            // Split by "data: " to handle multiple JSON objects in one chunk
             const parts = chunk.split("data: ");
 
             for (const part of parts) {
                 const trimmed = part.trim();
                 if (!trimmed || trimmed === "[DONE]") continue;
-
                 try {
                     const json = JSON.parse(trimmed);
                     const content = json.choices[0]?.delta?.content;
                     if (content) {
                         if (!hasStartedTyping) {
                             aiBubble.classList.remove('thinking-state');
-                            aiBubble.innerHTML = ""; // Clear dots
+                            aiBubble.innerHTML = "";
                             hasStartedTyping = true;
                         }
                         fullReply += content;
-                        // Use innerHTML + replace to handle line breaks correctly
                         aiBubble.innerText = fullReply; 
                         container.scrollTop = container.scrollHeight;
                     }
-                } catch (e) {
-                    console.warn("Skipping partial chunk");
-                }
+                } catch (e) {}
             }
         }
-
         chatHistory.push({ role: "assistant", content: fullReply });
 
     } catch (err) {
@@ -295,7 +280,6 @@ async function send() {
         document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost. Please refresh.</i>";
     }
 }
-// Start sequence
 fetchSheetData();
 </script>
 </body>
