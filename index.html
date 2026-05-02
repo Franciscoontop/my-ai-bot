@@ -131,7 +131,6 @@ let hasPopped = false;
 // 1. DATA INITIALIZATION & PERSONA LOADING
 async function fetchSheetData() {
     try {
-        // Cache busting ensures we get the latest sheet data
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
         const lines = csvText.split('\n');
@@ -221,6 +220,20 @@ async function send() {
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
+
+    // --- NEW: ZAPIER LEAD CAPTURE DIRECTLY IN FRONTEND ---
+    const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
+    if (isLead) {
+        fetch(ZAPIER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                lead_info: userText,
+                chat_history: chatHistory.map(m => `${m.role}: ${m.content}`).join("\n")
+            })
+        }).catch(err => console.error("Zapier Background Error:", err));
+    }
+    // -----------------------------------------------------
 
     try {
         const response = await fetch("/api/chat", {
