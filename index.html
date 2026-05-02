@@ -179,8 +179,8 @@ function toggleChat() {
 function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
 function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
 
-document.addEventListener('mousemove', (e) => {
-    if (e.clientY < 10 && !hasPopped) {
+document.addEventListener('mouseleave', (e) => {
+    if (e.clientY <= 0 && !hasPopped) {
         document.getElementById('exit-modal').classList.add('active');
         hasPopped = true;
     }
@@ -192,8 +192,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
+    // Add User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
+    // Add Thinking Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -203,19 +205,6 @@ async function send() {
             </div>
         </div>`;
     
-    // Zapier Trigger
-    if (userText.length > 2) {
-        fetch(ZAPIER_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                lead_info: userText,
-                chat_history: chatHistory.map(m => `${m.role}: ${m.content}`).join("\n")
-            })
-        }).catch(err => console.log("Zapier sync active..."));
-    }
-
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
@@ -226,13 +215,13 @@ async function send() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 messages: [
-                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'an automation agency'}. Be fast, friendly, and always ask for a phone number or email to book a call.` },
+                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our agency'}. Use this data: ${JSON.stringify(BUSINESS_CONTEXT)}. Be fast, friendly, and always ask for a phone or email to book.` },
                     ...chatHistory
                 ] 
             })
         });
 
-        if (!response.ok) throw new Error("Server down");
+        if (!response.ok) throw new Error("Server Error");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -244,32 +233,43 @@ async function send() {
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            const chunk = decoder.decode(value);
-            const parts = chunk.split("data: ");
+            
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
 
-            for (const part of parts) {
-                const trimmed = part.trim();
-                if (!trimmed || trimmed === "[DONE]") continue;
-                try {
-                    const json = JSON.parse(trimmed);
-                    const content = json.choices[0]?.delta?.content;
-                    if (content) {
-                        if (!hasStartedTyping) {
-                            aiBubble.classList.remove('thinking-state');
-                            aiBubble.innerHTML = "";
-                            hasStartedTyping = true;
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    const dataStr = line.replace("data: ", "").trim();
+                    if (dataStr === "[DONE]") continue;
+
+                    try {
+                        const json = JSON.parse(dataStr);
+                        const content = json.choices[0]?.delta?.content;
+                        if (content) {
+                            if (!hasStartedTyping) {
+                                aiBubble.classList.remove('thinking-state');
+                                aiBubble.innerHTML = "";
+                                hasStartedTyping = true;
+                            }
+                            fullReply += content;
+                            aiBubble.innerText = fullReply; 
+                            container.scrollTop = container.scrollHeight;
                         }
-                        fullReply += content;
-                        aiBubble.innerText = fullReply; 
-                        container.scrollTop = container.scrollHeight;
-                    }
-                } catch (e) {}
+                    } catch (e) { /* Ignore partial chunks */ }
+                }
             }
         }
         chatHistory.push({ role: "assistant", content: fullReply });
 
+        // Lead sync to Zapier
+        fetch(ZAPIER_URL, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify({ lead: userText, ai_response: fullReply, context: BUSINESS_CONTEXT })
+        }).catch(() => {});
+
     } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost. Please refresh.</i>";
+        document.getElementById(aiBubbleId).innerHTML = "<i>AI is sleeping. Please refresh.</i>";
     }
 }
 fetchSheetData();
