@@ -121,6 +121,7 @@
 
 <script>
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
+const ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
 let BUSINESS_CONTEXT = {}; 
 let chatHistory = [];
@@ -140,7 +141,6 @@ async function fetchSheetData() {
             }
         });
 
-        // Dynamic greeting and modal based on Sheet
         const currentOffer = BUSINESS_CONTEXT.offer || "a special discount";
         document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
         setGreeting(`Hi! I'm your AI Assistant. We have a <b>${currentOffer}</b> today. How can I help you?`);
@@ -188,6 +188,20 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
+    // --- ZAPIER TRIGGER (IMMEDIATE) ---
+    // If the message has a number or @, send to Zapier right now
+    const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
+    if (isLead) {
+        fetch(ZAPIER_URL, {
+            method: "POST",
+            mode: "no-cors", 
+            body: JSON.stringify({ 
+                lead: userText, 
+                history: chatHistory.map(m => m.content).join(" | ") 
+            })
+        });
+    }
+
     // Display User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
@@ -204,7 +218,6 @@ async function send() {
             </div>
         </div>`;
     
-    // CONSTRUCT SYSTEM PROMPT (Orders for the AI)
     const systemPrompt = { 
         role: "system", 
         content: `You are a helpful business assistant. You MUST use this data:
@@ -217,7 +230,7 @@ async function send() {
         Rules:
         1. If asked about the founder, you MUST say "${BUSINESS_CONTEXT.founder}".
         2. Keep answers short (2 sentences max).
-        3. Never mention 20% discount unless it is written in "Current Offer".`
+        3. Never mention 20% discount unless it is specifically written in "Current Offer" above.`
     };
 
     chatHistory.push({ role: "user", content: userText });
