@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    // 1. Lead Capture (Background)
+    // 1. Lead Capture logic (Kept exactly as you had it)
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
       fetch(ZAPIER_WEBHOOK_URL, {
@@ -35,22 +35,33 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta/llama-3.1-8b-instruct",
+        model: "meta/llama-3.1-8b-instruct", // Faster model selected
         messages: messages,
         stream: true, 
         temperature: 0.5,
       }),
     });
 
-    // 3. Robust Stream Handling
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("NVIDIA API Error:", errorText);
+        return res.status(response.status).send("NVIDIA API Error");
+    }
+
+    // 3. Proper Stream Pipe
+    // We pipe the NVIDIA response directly to Vercel's response
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        res.write("data: [DONE]\n\n");
+        break;
+      }
       
-      const chunk = decoder.decode(value, { stream: true });
+      const chunk = decoder.decode(value);
+      // NVIDIA already sends "data: {...}", so we just pass it through
       res.write(chunk);
     }
 
