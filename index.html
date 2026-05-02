@@ -120,6 +120,7 @@
 </div>
 
 <script>
+// --- CONFIGURATION ---
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
 const ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
@@ -127,6 +128,7 @@ let BUSINESS_CONTEXT = {};
 let chatHistory = [];
 let hasPopped = false;
 
+// 1. DATA INITIALIZATION
 async function fetchSheetData() {
     try {
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
@@ -159,6 +161,7 @@ function setGreeting(text) {
         </div>`;
 }
 
+// 2. UI HANDLERS
 function toggleChat() {
     const win = document.getElementById('chat-window');
     const bubble = document.getElementById('chat-bubble');
@@ -182,6 +185,7 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
+// 3. CORE SEND LOGIC (Updated for Non-Streaming Stability)
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
@@ -201,10 +205,11 @@ async function send() {
             </div>
         </div>`;
     
+    // Construct the persona from Google Sheet data
     const systemPrompt = { 
         role: "system", 
         content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our automation agency'}. 
-        MISSION: Convert every chat into a lead. Answer briefly, then IMMEDIATELY ask for Email and Phone to have ${BUSINESS_CONTEXT.founder} reach out.`
+        MISSION: Convert every chat into a lead. Answer briefly (max 2 sentences), then IMMEDIATELY ask for Email and Phone so ${BUSINESS_CONTEXT.founder || 'the team'} can reach out.`
     };
 
     chatHistory.push({ role: "user", content: userText });
@@ -220,7 +225,7 @@ async function send() {
 
         if (!res.ok) throw new Error("Server Error");
 
-        // STABILITY CHANGE: Using json() instead of a streaming reader
+        // PROCESS FULL JSON (Matches the non-streaming backend)
         const data = await res.json();
         const reply = data.choices[0].message.content;
         
@@ -231,17 +236,18 @@ async function send() {
         chatHistory.push({ role: "assistant", content: reply });
         container.scrollTop = container.scrollHeight;
 
-        // Zapier Lead Check
+        // Zapier Backup (Lead Check)
         const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
         if (isLead) {
             const formData = new URLSearchParams();
             formData.append("lead_text", userText);
-            formData.append("chat_history", chatHistory.map(m => m.content).join(" | "));
+            formData.append("chat_history", chatHistory.map(m => `${m.role}: ${m.content}`).join("\n"));
             fetch(ZAPIER_URL, { method: "POST", mode: "no-cors", body: formData });
         }
 
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection lost. Try refreshing.";
+        console.error("Fetch Error:", err);
+        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
     }
 }
 
