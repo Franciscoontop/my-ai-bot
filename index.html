@@ -70,36 +70,18 @@
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
         
-        /* Bubble Tweaks for Better Look */
-        .msg-bubble { 
-            padding: 10px 14px; 
-            border-radius: 15px; 
-            font-size: 14px; 
-            line-height: 1.4; 
-            white-space: pre-wrap; 
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         
-        /* Thinking State Capsule */
-        .ai-msg.thinking-state {
-            display: inline-flex !important;
-            width: auto !important;
-            padding: 6px 12px !important;
-            align-items: center;
-        }
+        .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
         .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
         .thinking-text { font-size: 12px; color: #888; margin-right: 4px; }
         .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
 
-        @keyframes bounce {
-            0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-5px); }
-        }
+        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
 
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
@@ -140,12 +122,8 @@
 <script>
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
 
-// 1. ADDING A SYSTEM PROMPT TO LIMIT AI LENGTH
-let chatHistory = [
-    { role: "system", content: "You are a concise business assistant. Keep all responses under 2-3 short sentences. Use bullet points only if necessary. Be professional but brief." }
-];
-
 let BUSINESS_CONTEXT = {}; 
+let chatHistory = [];
 let hasPopped = false;
 
 async function fetchSheetData() {
@@ -161,12 +139,14 @@ async function fetchSheetData() {
                 if (key && value) BUSINESS_CONTEXT[key] = value;
             }
         });
-        if(BUSINESS_CONTEXT.offer) {
-            document.getElementById('modal-offer-text').innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
-            setGreeting(`Hi! I'm your assistant. We have a <b>${BUSINESS_CONTEXT.offer}</b> offer today. How can I help?`);
-        }
+
+        // Dynamic greeting and modal based on Sheet
+        const currentOffer = BUSINESS_CONTEXT.offer || "a special discount";
+        document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
+        setGreeting(`Hi! I'm your AI Assistant. We have a <b>${currentOffer}</b> today. How can I help you?`);
+        
     } catch (err) {
-        setGreeting(`Hi! I'm your AI Assistant. How can I help you today?`);
+        setGreeting(`Hi! How can I help you today?`);
     }
 }
 
@@ -222,45 +202,47 @@ async function send() {
             </div>
         </div>`;
     
+    // BUILD DYNAMIC MEMORY FOR THE AI
+    const memory = [
+        { role: "system", content: `You are a World-Class Sales Rep. Use these facts:
+        - About Us: ${BUSINESS_CONTEXT.description || "Premium AI automation agency"}
+        - Founder: ${BUSINESS_CONTEXT.founder || "Our expert team"}
+        - Pricing: ${BUSINESS_CONTEXT.pricing || "Contact for quote"}
+        - Current Offer: ${BUSINESS_CONTEXT.offer || "Special discount"}
+        - Services: ${BUSINESS_CONTEXT.service1 || ""}, ${BUSINESS_CONTEXT.service2 || ""}
+        Rules: Keep answers under 3 sentences. Always end by asking for Name or Phone Number. Never mention 20% unless the context says so.` }
+    ];
+
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
-
-    const aiBubble = document.getElementById(aiBubbleId);
-    let fullAIResponse = "";
-    let buffer = ""; 
-    let isFirstToken = true;
 
     try {
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: chatHistory })
+            body: JSON.stringify({ messages: [...memory, ...chatHistory] })
         });
-
-        if (!res.ok) throw new Error();
 
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        const aiBubble = document.getElementById(aiBubbleId);
+        let fullAIResponse = "";
+        let isFirstToken = true;
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop(); 
-
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split("\n");
             for (const line of lines) {
-                const trimmed = line.trim();
-                if (!trimmed || trimmed === "data: [DONE]") continue;
-
-                if (trimmed.startsWith("data: ")) {
+                if (line.startsWith("data: ")) {
+                    const jsonStr = line.replace("data: ", "").trim();
+                    if (jsonStr === "[DONE]") continue;
                     try {
-                        const jsonStr = trimmed.replace("data: ", "");
                         const data = JSON.parse(jsonStr);
                         const content = data.choices[0].delta.content || "";
-                        
                         if (content) {
                             if (isFirstToken) {
                                 aiBubble.innerHTML = ""; 
@@ -277,8 +259,7 @@ async function send() {
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        aiBubble.innerText = "Connection lost. Please try again.";
-        aiBubble.classList.remove('thinking-state');
+        document.getElementById(aiBubbleId).innerText = "Connection lost.";
     }
 }
 
