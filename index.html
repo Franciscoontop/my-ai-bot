@@ -188,8 +188,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
+    // Display User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
+    // Display AI Thinking Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -202,16 +204,21 @@ async function send() {
             </div>
         </div>`;
     
-    // BUILD DYNAMIC MEMORY FOR THE AI
-    const memory = [
-        { role: "system", content: `You are a World-Class Sales Rep. Use these facts:
-        - About Us: ${BUSINESS_CONTEXT.description || "Premium AI automation agency"}
-        - Founder: ${BUSINESS_CONTEXT.founder || "Our expert team"}
-        - Pricing: ${BUSINESS_CONTEXT.pricing || "Contact for quote"}
-        - Current Offer: ${BUSINESS_CONTEXT.offer || "Special discount"}
-        - Services: ${BUSINESS_CONTEXT.service1 || ""}, ${BUSINESS_CONTEXT.service2 || ""}
-        Rules: Keep answers under 3 sentences. Always end by asking for Name or Phone Number. Never mention 20% unless the context says so.` }
-    ];
+    // CONSTRUCT SYSTEM PROMPT (Orders for the AI)
+    const systemPrompt = { 
+        role: "system", 
+        content: `You are a helpful business assistant. You MUST use this data:
+        - Founder: ${BUSINESS_CONTEXT.founder || 'Information not provided'}
+        - Business Description: ${BUSINESS_CONTEXT.description || 'AI Automation Agency'}
+        - Pricing: ${BUSINESS_CONTEXT.pricing || 'Custom pricing'}
+        - Current Offer: ${BUSINESS_CONTEXT.offer || 'Free Consultation'}
+        - Services: ${BUSINESS_CONTEXT.service1 || ''}, ${BUSINESS_CONTEXT.service2 || ''}
+
+        Rules:
+        1. If asked about the founder, you MUST say "${BUSINESS_CONTEXT.founder}".
+        2. Keep answers short (2 sentences max).
+        3. Never mention 20% discount unless it is written in "Current Offer".`
+    };
 
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
@@ -221,7 +228,7 @@ async function send() {
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: [...memory, ...chatHistory] })
+            body: JSON.stringify({ messages: [systemPrompt, ...chatHistory] })
         });
 
         const reader = res.body.getReader();
