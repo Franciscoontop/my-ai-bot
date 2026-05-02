@@ -1,4 +1,5 @@
 // 1. Set the maximum duration for the serverless function
+// 1. Set the maximum duration for the serverless function
 export const config = {
   maxDuration: 60,
 };
