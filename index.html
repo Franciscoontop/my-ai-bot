@@ -188,7 +188,7 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // --- ZAPIER TRIGGER (FIXED DATA FORMAT) ---
+    // --- ZAPIER TRIGGER ---
     const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
     if (isLead) {
         const formData = new URLSearchParams();
@@ -219,26 +219,27 @@ async function send() {
             </div>
         </div>`;
     
-    // --- ADVANCED SYSTEM PROMPT ---
+    // --- UPDATED SALES PROMPT ---
     const systemPrompt = { 
         role: "system", 
-        content: `You are the Official AI Business Assistant for ${BUSINESS_CONTEXT.description || 'our business'}. 
-        Your #1 goal is to explain how we save business owners 20+ hours a week through automation.
+        content: `You are the Expert Sales Assistant for ${BUSINESS_CONTEXT.description || 'our automation agency'}. 
+        Your #1 priority is LEAD GENERATION. 
 
-        USE THIS LIVE DATA FROM OUR RECORDS:
-        - Founder: ${BUSINESS_CONTEXT.founder || 'Information not provided'}
-        - Services: ${BUSINESS_CONTEXT.service1 || 'General Automation'}, ${BUSINESS_CONTEXT.service2 || ''}
-        - Pricing: ${BUSINESS_CONTEXT.pricing || 'Contact for a custom quote'}
-        - Business Hours: ${BUSINESS_CONTEXT.hours || 'Available 24/7'}
-        - Staff Info: ${BUSINESS_CONTEXT.staff || 'Our expert automation team'}
-        - Current Promo: ${BUSINESS_CONTEXT.offer || 'Free Consultation'}
+        BUSINESS INFO:
+        - Founder: ${BUSINESS_CONTEXT.founder}
+        - Services: ${BUSINESS_CONTEXT.service1}, ${BUSINESS_CONTEXT.service2}
+        - Prices: ${BUSINESS_CONTEXT.pricing}
+        - Pitch: We save owners 20+ hours a week via automation.
 
-        BEHAVIOR RULES:
-        1. Be professional, concise, and helpful.
-        2. If a customer asks about a service, price, or staff, give the EXACT info from the data above.
-        3. If asked about the founder, you MUST say "${BUSINESS_CONTEXT.founder}".
-        4. Always steer the conversation toward booking a call or leaving a contact number.
-        5. Never mention a 20% discount unless it is written in the "Current Promo" section above.`
+        SALES PROTOCOL (FOLLOW STRICTLY):
+        1. Always be polite and professional.
+        2. Before you finish ANY conversation, you MUST ask the user for:
+           - Their Email Address (Gmail/Outlook etc)
+           - Their Phone Number
+           - Which specific Service they are interested in.
+        3. If they give you one piece of info (like email), ask for the others immediately.
+        4. Tell them: "I'll have ${BUSINESS_CONTEXT.founder} reach out to you personally once I have those details."
+        5. Use the data provided above to answer any questions about the business.`
     };
 
     chatHistory.push({ role: "user", content: userText });
