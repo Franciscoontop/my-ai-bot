@@ -128,12 +128,14 @@ let BUSINESS_CONTEXT = {};
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. DATA INITIALIZATION
+// 1. DATA INITIALIZATION & PERSONA LOADING
 async function fetchSheetData() {
     try {
+        // Cache busting ensures we get the latest sheet data
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
         const lines = csvText.split('\n');
+        
         lines.forEach(line => {
             const firstCommaIndex = line.indexOf(',');
             if (firstCommaIndex !== -1) {
@@ -143,12 +145,16 @@ async function fetchSheetData() {
             }
         });
 
-        const currentOffer = BUSINESS_CONTEXT.offer || "a special consultation";
+        const currentOffer = BUSINESS_CONTEXT.offer || "exclusive demo";
+        const founderName = BUSINESS_CONTEXT.founder || "our lead strategist";
+        
         document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
-        setGreeting(`Hi! I'm the Sales Assistant for ${BUSINESS_CONTEXT.description || 'our agency'}. We have a <b>${currentOffer}</b> today. How can I help you?`);
+        
+        setGreeting(`Hi! I'm the AI Assistant for ${BUSINESS_CONTEXT.description || 'our agency'}. We’re currently offering a <b>${currentOffer}</b>. How can I help you scale today?`);
         
     } catch (err) {
-        setGreeting(`Hi! How can I help you today?`);
+        console.error("Sheet Load Error:", err);
+        setGreeting(`Hi! I'm ready to help. How can I assist you with our automation services today?`);
     }
 }
 
@@ -161,7 +167,7 @@ function setGreeting(text) {
         </div>`;
 }
 
-// 2. UI HANDLERS
+// 2. UI & MODAL LOGIC
 function toggleChat() {
     const win = document.getElementById('chat-window');
     const bubble = document.getElementById('chat-bubble');
@@ -171,13 +177,20 @@ function toggleChat() {
         setTimeout(() => { win.style.display = 'none'; }, 400);
     } else {
         win.style.display = 'flex';
-        setTimeout(() => { win.classList.add('open'); bubble.classList.add('active-spiral'); }, 10);
+        setTimeout(() => { 
+            win.classList.add('open'); 
+            bubble.classList.add('active-spiral'); 
+        }, 10);
     }
 }
 
 function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
+function claimOffer() { 
+    closeModal(); 
+    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); 
+}
 
+// Exit Intent Trigger
 document.addEventListener('mousemove', (e) => {
     if (e.clientY < 10 && !hasPopped) {
         document.getElementById('exit-modal').classList.add('active');
@@ -185,17 +198,17 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-// 3. CORE SEND LOGIC (Updated for Non-Streaming Stability)
+// 3. STABLE COMMUNICATION LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
     const userText = input.value.trim();
     if (!userText) return;
 
-    // Display User Message
+    // Render User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Display AI Thinking
+    // Render Thinking State
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -205,11 +218,14 @@ async function send() {
             </div>
         </div>`;
     
-    // Construct the persona from Google Sheet data
+    // Construct System Persona
+    const founder = BUSINESS_CONTEXT.founder || "our executive team";
     const systemPrompt = { 
         role: "system", 
-        content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our automation agency'}. 
-        MISSION: Convert every chat into a lead. Answer briefly (max 2 sentences), then IMMEDIATELY ask for Email and Phone so ${BUSINESS_CONTEXT.founder || 'the team'} can reach out.`
+        content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our AI Automation Agency'}. 
+        MISSION: Qualify the visitor and capture lead info. 
+        STRATEGY: Be professional yet persuasive. Answer questions in 1-2 sentences. 
+        CRITICAL: End every response by asking for their Email or Phone Number so ${founder} can follow up personally.`
     };
 
     chatHistory.push({ role: "user", content: userText });
@@ -223,9 +239,8 @@ async function send() {
             body: JSON.stringify({ messages: [systemPrompt, ...chatHistory] })
         });
 
-        if (!res.ok) throw new Error("Server Error");
+        if (!res.ok) throw new Error("API_ERROR");
 
-        // PROCESS FULL JSON (Matches the non-streaming backend)
         const data = await res.json();
         const reply = data.choices[0].message.content;
         
@@ -236,21 +251,31 @@ async function send() {
         chatHistory.push({ role: "assistant", content: reply });
         container.scrollTop = container.scrollHeight;
 
-        // Zapier Backup (Lead Check)
-        const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
-        if (isLead) {
+        // Lead Detection & Zapier Push
+        const hasEmail = /\S+@\S+\.\S+/.test(userText);
+        const hasPhone = /\b\d{7,}\b/.test(userText);
+        
+        if (hasEmail || hasPhone) {
             const formData = new URLSearchParams();
-            formData.append("lead_text", userText);
-            formData.append("chat_history", chatHistory.map(m => `${m.role}: ${m.content}`).join("\n"));
-            fetch(ZAPIER_URL, { method: "POST", mode: "no-cors", body: formData });
+            formData.append("lead_content", userText);
+            formData.append("full_history", chatHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n"));
+            
+            fetch(ZAPIER_URL, { 
+                method: "POST", 
+                mode: "no-cors", 
+                body: formData 
+            }).then(() => console.log("Lead synced to Zapier"));
         }
 
     } catch (err) {
-        console.error("Fetch Error:", err);
-        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
+        console.error("Communication Error:", err);
+        const errorBubble = document.getElementById(aiBubbleId);
+        errorBubble.classList.remove('thinking-state');
+        errorBubble.innerText = "I'm having trouble connecting to my brain. Please refresh and try again!";
     }
 }
 
+// Start sequence
 fetchSheetData();
 </script>
 </body>
