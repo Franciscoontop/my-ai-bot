@@ -1,5 +1,4 @@
 // 1. Set the maximum duration for the serverless function
-// 1. Set the maximum duration for the serverless function
 export const config = {
   maxDuration: 60,
 };
@@ -24,19 +23,22 @@ export default async function handler(req, res) {
     // Extract the latest message from the user
     const lastUserMessage = messages[messages.length - 1].content;
     
-    // Check if the message likely contains lead info (phone, email, or a short name-like string)
+    // Check if the message likely contains lead info
     const hasPhone = /\b\d{7,}\b/.test(lastUserMessage);
     const hasEmail = /\S+@\S+\.\S+/.test(lastUserMessage);
+    // Also catch short replies that follow an AI question (likely a Name)
+    const isShortReply = lastUserMessage.split(" ").length <= 3 && lastUserMessage.length > 2;
     
-    // If it looks like a lead, fire to Zapier immediately
-    if (hasPhone || hasEmail) {
-      fetch(ZAPIER_WEBHOOK_URL, {
+    // If it looks like a lead, fire to Zapier
+    if (hasPhone || hasEmail || isShortReply) {
+      // We use 'await' here to ensure Zapier receives it before the function moves on
+      await fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
-        mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           lead_info: lastUserMessage,
           full_chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          detected_type: hasEmail ? "Email" : hasPhone ? "Phone" : "Name/Potential Lead",
           timestamp: new Date().toISOString()
         }),
       }).catch(err => console.error("Zapier Webhook Error:", err));
