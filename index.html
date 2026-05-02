@@ -67,19 +67,23 @@
         .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; }
+        
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         
-        /* THE NEW TIGHT THINKING BUBBLE */
+        /* 1. FORCE THE THINKING BUBBLE TO BE SMALL */
         .ai-msg.thinking-state {
-            display: inline-block !important;
-            width: fit-content !important;
+            display: inline-flex !important;
+            width: auto !important;
             padding: 6px 12px !important;
+            align-items: center;
         }
 
-        .thinking-dots { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+        .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
         .thinking-text { font-size: 12px; color: #888; margin-right: 4px; }
+        
+        /* 2. BOUNCING ANIMATION */
         .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
@@ -251,6 +255,7 @@ async function send() {
                         
                         if (content) {
                             if (isFirstToken) {
+                                // 3. RESET THE BUBBLE COMPLETELY BEFORE TYPING
                                 aiBubble.innerHTML = ""; 
                                 aiBubble.classList.remove('thinking-state');
                                 isFirstToken = false;
@@ -266,6 +271,7 @@ async function send() {
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
         aiBubble.innerText = "Connection lost. Please try again.";
+        aiBubble.classList.remove('thinking-state');
     }
 }
 
