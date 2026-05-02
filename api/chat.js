@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   try {
     const { messages } = req.body;
 
-    // 1. Background Lead Capture (Zapier)
+    // 1. Lead Capture (Background)
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
       fetch(ZAPIER_WEBHOOK_URL, {
@@ -23,12 +23,11 @@ export default async function handler(req, res) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. Set headers for Streaming
+    // 2. Set streaming headers
     res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('Connection', 'keep-alive');
 
-    // 3. Call NVIDIA with stream: true
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -43,17 +42,22 @@ export default async function handler(req, res) {
       }),
     });
 
+    // 3. Robust Stream Handling
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      res.write(decoder.decode(value));
+      
+      const chunk = decoder.decode(value, { stream: true });
+      res.write(chunk);
     }
 
     res.end();
   } catch (e) {
-    res.status(500).end();
+    console.error("Stream Error:", e);
+    if (!res.headersSent) res.status(500).send("Error");
+    res.end();
   }
 }
