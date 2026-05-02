@@ -60,34 +60,41 @@
         .icon-dock { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
         .header-text b { display: block; font-size: 14px; color: #fff; }
         .header-text span { font-size: 11px; color: #00ff88; }
-        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; }
-        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 85%; }
+        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; scroll-behavior: smooth; }
+        
+        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 90%; }
         .ai-row { align-self: flex-start; }
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
+        
         .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .ai-avatar { background: #fff; }
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
         
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+        /* Bubble Tweaks for Better Look */
+        .msg-bubble { 
+            padding: 10px 14px; 
+            border-radius: 15px; 
+            font-size: 14px; 
+            line-height: 1.4; 
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         
-        /* 1. FORCE THE THINKING BUBBLE TO BE SMALL */
+        /* Thinking State Capsule */
         .ai-msg.thinking-state {
             display: inline-flex !important;
             width: auto !important;
             padding: 6px 12px !important;
             align-items: center;
         }
-
         .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
         .thinking-text { font-size: 12px; color: #888; margin-right: 4px; }
-        
-        /* 2. BOUNCING ANIMATION */
         .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
-        .dot:nth-child(4) { animation-delay: 0.6s; }
 
         @keyframes bounce {
             0%, 80%, 100% { transform: translateY(0); }
@@ -132,8 +139,13 @@
 
 <script>
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
+
+// 1. ADDING A SYSTEM PROMPT TO LIMIT AI LENGTH
+let chatHistory = [
+    { role: "system", content: "You are a concise business assistant. Keep all responses under 2-3 short sentences. Use bullet points only if necessary. Be professional but brief." }
+];
+
 let BUSINESS_CONTEXT = {}; 
-let chatHistory = [];
 let hasPopped = false;
 
 async function fetchSheetData() {
@@ -151,11 +163,10 @@ async function fetchSheetData() {
         });
         if(BUSINESS_CONTEXT.offer) {
             document.getElementById('modal-offer-text').innerHTML = `Take <b>${BUSINESS_CONTEXT.offer}</b> your next order!`;
-            setGreeting(`Hi! I'm your AI Assistant. I see we have a <b>${BUSINESS_CONTEXT.offer}</b> today. What is your name?`);
+            setGreeting(`Hi! I'm your assistant. We have a <b>${BUSINESS_CONTEXT.offer}</b> offer today. How can I help?`);
         }
     } catch (err) {
-        BUSINESS_CONTEXT = { description: "AI Agency", pricing: "Contact us", offer: "20% OFF" };
-        setGreeting(`Hi! I'm your AI Assistant. How can I help you?`);
+        setGreeting(`Hi! I'm your AI Assistant. How can I help you today?`);
     }
 }
 
@@ -182,10 +193,7 @@ function toggleChat() {
 }
 
 function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-function claimOffer() { 
-    closeModal(); 
-    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
-}
+function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
 
 document.addEventListener('mousemove', (e) => {
     if (e.clientY < 10 && !hasPopped) {
@@ -255,7 +263,6 @@ async function send() {
                         
                         if (content) {
                             if (isFirstToken) {
-                                // 3. RESET THE BUBBLE COMPLETELY BEFORE TYPING
                                 aiBubble.innerHTML = ""; 
                                 aiBubble.classList.remove('thinking-state');
                                 isFirstToken = false;
