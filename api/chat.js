@@ -17,6 +17,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No messages provided" });
     }
 
+    // We removed the hard-coded "system" role here.
+    // The messages array now already contains the dynamic info from your Google Sheet.
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -25,15 +27,9 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: [
-          {
-            role: "system",
-            content: "You are a World-Class Sales Representative for our AI Automation Agency. Goal: Convert visitors by offering a 20% discount. Rule: End every message by asking for their Name or Phone Number. Strictly redirect off-topic talk back to business."
-          },
-          ...messages
-        ],
+        messages: messages, // Now passing the clean history including the sheet data
         stream: true,
-        temperature: 0.4,
+        temperature: 0.5,
         max_tokens: 500,
       }),
     });
@@ -45,7 +41,7 @@ export default async function handler(req, res) {
       return res.status(response.status).json({ error: "NVIDIA API Error" });
     }
 
-    // 2. Critical Headers: This tells the browser and Vercel to stream the response
+    // 2. Critical Headers for Vercel Streaming
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -58,11 +54,9 @@ export default async function handler(req, res) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Write the raw buffer directly to the response object.
       // This ensures the word-by-word streaming is preserved.
       res.write(value);
       
-      // If the response is large, this flushes the node buffer
       if (typeof res.flush === 'function') {
         res.flush();
       }
@@ -72,7 +66,6 @@ export default async function handler(req, res) {
 
   } catch (e) {
     console.error("Internal Server Error:", e.message);
-    // If headers haven't been sent yet, we can send a 500
     if (!res.headersSent) {
       return res.status(500).json({ error: e.message });
     }
