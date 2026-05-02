@@ -120,7 +120,6 @@
 </div>
 
 <script>
-// --- CONFIGURATION ---
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
 const ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
@@ -128,7 +127,6 @@ let BUSINESS_CONTEXT = {};
 let chatHistory = [];
 let hasPopped = false;
 
-// 1. DATA INITIALIZATION
 async function fetchSheetData() {
     try {
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
@@ -149,7 +147,6 @@ async function fetchSheetData() {
         setGreeting(`Hi! I'm the AI Assistant for ${BUSINESS_CONTEXT.description || 'our agency'}. We’re currently offering a <b>${currentOffer}</b>. How can I help you scale today?`);
         
     } catch (err) {
-        console.error("Sheet Load Error:", err);
         setGreeting(`Hi! I'm ready to help. How can I assist you with our automation services today?`);
     }
 }
@@ -163,7 +160,6 @@ function setGreeting(text) {
         </div>`;
 }
 
-// 2. UI LOGIC
 function toggleChat() {
     const win = document.getElementById('chat-window');
     const bubble = document.getElementById('chat-bubble');
@@ -190,17 +186,14 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-// 3. COMMUNICATION LOGIC
 async function send() {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
     const userText = input.value.trim();
     if (!userText) return;
 
-    // UI: Add User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // UI: Add AI Thinking Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -210,8 +203,8 @@ async function send() {
             </div>
         </div>`;
     
-    // --- OPTIMAL LEAD CAPTURE: SENDS IMMEDIATELY TO ZAPIER ---
-    if (userText.length > 3) {
+    // Zapier Trigger
+    if (userText.length > 2) {
         fetch(ZAPIER_URL, {
             method: "POST",
             mode: "no-cors",
@@ -233,7 +226,7 @@ async function send() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 messages: [
-                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description}. Aggressively ask for contact info to book calls.` },
+                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'an automation agency'}. Be fast, friendly, and always ask for a phone number or email to book a call.` },
                     ...chatHistory
                 ] 
             })
@@ -276,7 +269,6 @@ async function send() {
         chatHistory.push({ role: "assistant", content: fullReply });
 
     } catch (err) {
-        console.error(err);
         document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost. Please refresh.</i>";
     }
 }
