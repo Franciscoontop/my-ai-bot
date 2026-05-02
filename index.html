@@ -93,9 +93,9 @@
 <div id="ai-widget-wrapper">
     <div id="exit-modal">
         <div class="modal-offer">Wait! Before you go... 🎁</div>
-        <div class="modal-text" id="modal-offer-text">Take <b>20% OFF</b> your next order!</div>
-        <div class="promo-code">NEXT20</div>
-        <button class="close-modal-btn" onclick="claimOffer()">Claim Discount</button>
+        <div class="modal-text" id="modal-offer-text">Claim your special offer!</div>
+        <div class="promo-code">OFFER20</div>
+        <button class="close-modal-btn" onclick="claimOffer()">Claim Now</button>
         <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Dismiss</p>
     </div>
 
@@ -141,7 +141,7 @@ async function fetchSheetData() {
             }
         });
 
-        const currentOffer = BUSINESS_CONTEXT.offer || "a special discount";
+        const currentOffer = BUSINESS_CONTEXT.offer || "a special consultation";
         document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
         setGreeting(`Hi! I'm your AI Assistant. We have a <b>${currentOffer}</b> today. How can I help you?`);
         
@@ -189,7 +189,6 @@ async function send() {
     if (!userText) return;
 
     // --- ZAPIER TRIGGER (IMMEDIATE) ---
-    // If the message has a number or @, send to Zapier right now
     const isLead = /\b\d{7,}\b/.test(userText) || /\S+@\S+\.\S+/.test(userText);
     if (isLead) {
         fetch(ZAPIER_URL, {
@@ -218,19 +217,26 @@ async function send() {
             </div>
         </div>`;
     
+    // --- ADVANCED SYSTEM PROMPT ---
     const systemPrompt = { 
         role: "system", 
-        content: `You are a helpful business assistant. You MUST use this data:
-        - Founder: ${BUSINESS_CONTEXT.founder || 'Information not provided'}
-        - Business Description: ${BUSINESS_CONTEXT.description || 'AI Automation Agency'}
-        - Pricing: ${BUSINESS_CONTEXT.pricing || 'Custom pricing'}
-        - Current Offer: ${BUSINESS_CONTEXT.offer || 'Free Consultation'}
-        - Services: ${BUSINESS_CONTEXT.service1 || ''}, ${BUSINESS_CONTEXT.service2 || ''}
+        content: `You are the Official AI Business Assistant for ${BUSINESS_CONTEXT.description || 'our business'}. 
+        Your #1 goal is to explain how we save business owners 20+ hours a week through automation.
 
-        Rules:
-        1. If asked about the founder, you MUST say "${BUSINESS_CONTEXT.founder}".
-        2. Keep answers short (2 sentences max).
-        3. Never mention 20% discount unless it is specifically written in "Current Offer" above.`
+        USE THIS LIVE DATA FROM OUR RECORDS:
+        - Founder: ${BUSINESS_CONTEXT.founder || 'Information not provided'}
+        - Services: ${BUSINESS_CONTEXT.service1 || 'General Automation'}, ${BUSINESS_CONTEXT.service2 || ''}
+        - Pricing: ${BUSINESS_CONTEXT.pricing || 'Contact for a custom quote'}
+        - Business Hours: ${BUSINESS_CONTEXT.hours || 'Available 24/7'}
+        - Staff Info: ${BUSINESS_CONTEXT.staff || 'Our expert automation team'}
+        - Current Promo: ${BUSINESS_CONTEXT.offer || 'Free Consultation'}
+
+        BEHAVIOR RULES:
+        1. Be professional, concise, and helpful.
+        2. If a customer asks about a service, price, or staff, give the EXACT info from the data above.
+        3. If asked about the founder, you MUST say "${BUSINESS_CONTEXT.founder}".
+        4. Always steer the conversation toward booking a call or leaving a contact number.
+        5. Never mention a 20% discount unless it is written in the "Current Promo" section above.`
     };
 
     chatHistory.push({ role: "user", content: userText });
