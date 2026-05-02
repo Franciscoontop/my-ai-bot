@@ -205,10 +205,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // Render User Message
+    // 1. Render User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Render Thinking State
+    // 2. Render Thinking State
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -218,16 +218,6 @@ async function send() {
             </div>
         </div>`;
     
-    // Construct System Persona
-    const founder = BUSINESS_CONTEXT.founder || "our executive team";
-    const systemPrompt = { 
-        role: "system", 
-        content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our AI Automation Agency'}. 
-        MISSION: Qualify the visitor and capture lead info. 
-        STRATEGY: Be professional yet persuasive. Answer questions in 1-2 sentences. 
-        CRITICAL: End every response by asking for their Email or Phone Number so ${founder} can follow up personally.`
-    };
-
     chatHistory.push({ role: "user", content: userText });
     input.value = ""; 
     container.scrollTop = container.scrollHeight;
@@ -236,7 +226,12 @@ async function send() {
         const res = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: [systemPrompt, ...chatHistory] })
+            body: JSON.stringify({ 
+                messages: [
+                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our agency'}. Professional, brief, and always asks for email/phone.` },
+                    ...chatHistory
+                ] 
+            })
         });
 
         if (!res.ok) throw new Error("API_ERROR");
@@ -244,34 +239,42 @@ async function send() {
         const data = await res.json();
         const reply = data.choices[0].message.content;
         
+        // 3. WAIT BEFORE TYPING (Keeps the thinking dots visible a bit longer)
+        await new Promise(resolve => setTimeout(resolve, 800));
+
         const aiBubble = document.getElementById(aiBubbleId);
         aiBubble.classList.remove('thinking-state');
-        aiBubble.innerText = reply;
-        
-        chatHistory.push({ role: "assistant", content: reply });
-        container.scrollTop = container.scrollHeight;
+        aiBubble.innerText = ""; // Clear dots before typing
 
-        // Lead Detection & Zapier Push
-        const hasEmail = /\S+@\S+\.\S+/.test(userText);
-        const hasPhone = /\b\d{7,}\b/.test(userText);
+        // 4. TYPING EFFECT LOGIC
+        let i = 0;
+        const speed = 25; // Milliseconds per character (lower is faster)
         
-        if (hasEmail || hasPhone) {
+        function typeWriter() {
+            if (i < reply.length) {
+                aiBubble.innerText += reply.charAt(i);
+                i++;
+                container.scrollTop = container.scrollHeight;
+                setTimeout(typeWriter, speed);
+            }
+        }
+        
+        typeWriter();
+
+        chatHistory.push({ role: "assistant", content: reply });
+
+        // Lead Detection (stays the same)
+        if (/\S+@\S+\.\S+/.test(userText) || /\b\d{7,}\b/.test(userText)) {
             const formData = new URLSearchParams();
             formData.append("lead_content", userText);
-            formData.append("full_history", chatHistory.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n"));
-            
-            fetch(ZAPIER_URL, { 
-                method: "POST", 
-                mode: "no-cors", 
-                body: formData 
-            }).then(() => console.log("Lead synced to Zapier"));
+            formData.append("full_history", chatHistory.map(m => `${m.role}: ${m.content}`).join("\n"));
+            fetch(ZAPIER_URL, { method: "POST", mode: "no-cors", body: formData });
         }
 
     } catch (err) {
-        console.error("Communication Error:", err);
         const errorBubble = document.getElementById(aiBubbleId);
         errorBubble.classList.remove('thinking-state');
-        errorBubble.innerText = "I'm having trouble connecting to my brain. Please refresh and try again!";
+        errorBubble.innerText = "Connection lost. Please refresh.";
     }
 }
 
