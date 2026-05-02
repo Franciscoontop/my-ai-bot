@@ -205,10 +205,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // 1. Render User Message
+    // Add User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // 2. Render Thinking State
+    // Add AI Bubble with Thinking Dots
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -223,61 +223,61 @@ async function send() {
     container.scrollTop = container.scrollHeight;
 
     try {
-        const res = await fetch("/api/chat", {
+        const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
                 messages: [
-                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our agency'}. Professional, brief, and always asks for email/phone.` },
+                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description}. Always ask for contact info.` },
                     ...chatHistory
                 ] 
             })
         });
 
-        if (!res.ok) throw new Error("API_ERROR");
-
-        const data = await res.json();
-        const reply = data.choices[0].message.content;
-        
-        // 3. WAIT BEFORE TYPING (Keeps the thinking dots visible a bit longer)
-        await new Promise(resolve => setTimeout(resolve, 800));
-
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
         const aiBubble = document.getElementById(aiBubbleId);
-        aiBubble.classList.remove('thinking-state');
-        aiBubble.innerText = ""; // Clear dots before typing
-
-        // 4. TYPING EFFECT LOGIC
-        let i = 0;
-        const speed = 25; // Milliseconds per character (lower is faster)
         
-        function typeWriter() {
-            if (i < reply.length) {
-                aiBubble.innerText += reply.charAt(i);
-                i++;
-                container.scrollTop = container.scrollHeight;
-                setTimeout(typeWriter, speed);
-            }
-        }
-        
-        typeWriter();
+        let fullReply = "";
+        let hasStartedTyping = false;
 
-        chatHistory.push({ role: "assistant", content: reply });
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-        // Lead Detection (stays the same)
-        if (/\S+@\S+\.\S+/.test(userText) || /\b\d{7,}\b/.test(userText)) {
-            const formData = new URLSearchParams();
-            formData.append("lead_content", userText);
-            formData.append("full_history", chatHistory.map(m => `${m.role}: ${m.content}`).join("\n"));
-            fetch(ZAPIER_URL, { method: "POST", mode: "no-cors", body: formData });
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            lines.forEach(line => {
+                if (line.trim().startsWith("data: ")) {
+                    const jsonStr = line.replace("data: ", "").trim();
+                    if (jsonStr === "[DONE]") return;
+
+                    try {
+                        const json = JSON.parse(jsonStr);
+                        const content = json.choices[0].delta.content;
+                        if (content) {
+                            // Remove thinking dots as soon as the first word arrives
+                            if (!hasStartedTyping) {
+                                aiBubble.classList.remove('thinking-state');
+                                aiBubble.innerText = "";
+                                hasStartedTyping = true;
+                            }
+                            fullReply += content;
+                            aiBubble.innerText = fullReply;
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    } catch (e) { /* Skip partial JSON chunks */ }
+                }
+            });
         }
+
+        chatHistory.push({ role: "assistant", content: fullReply });
 
     } catch (err) {
-        const errorBubble = document.getElementById(aiBubbleId);
-        errorBubble.classList.remove('thinking-state');
-        errorBubble.innerText = "Connection lost. Please refresh.";
+        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
     }
 }
-
 // Start sequence
 fetchSheetData();
 </script>
