@@ -206,7 +206,6 @@ async function send() {
     // Display User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Display AI Thinking Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -223,19 +222,15 @@ async function send() {
     const systemPrompt = { 
         role: "system", 
         content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'our automation agency'}. 
+        MISSION: Convert every chat into a lead.
         
-        YOUR MISSION:
-        You must convert every chat into a lead. Do not just answer questions; close the deal.
-
-        CORE PITCH:
-        We save business owners 20+ hours every single week by automating their repetitive tasks. Our founder, ${BUSINESS_CONTEXT.founder}, has designed these systems to pay for themselves.
-
-        STRICT SALES PROTOCOL:
-        1. Keep answers short (max 2-3 sentences).
-        2. IMMEDIATELY after answering any question, you MUST ask: "What is your best email and phone number? I'll have ${BUSINESS_CONTEXT.founder} reach out to discuss how we can save you those 20+ hours."
-        3. If they ask about services, mention ${BUSINESS_CONTEXT.service1} or ${BUSINESS_CONTEXT.service2} and then ask for their contact info.
-        4. If they give an email but no phone number, ask: "Got the email! What's a good phone number to text you at as well?"
-        5. DO NOT stop asking until you have: Email, Phone Number, and the Service they want.`
+        PITCH: We save owners 20+ hours a week via automation. Founder: ${BUSINESS_CONTEXT.founder}.
+        
+        STRICT RULES:
+        1. Keep answers short (2 sentences).
+        2. IMMEDIATELY after answering, you MUST ask for: Email Address, Phone Number, and which Service (${BUSINESS_CONTEXT.service1} or ${BUSINESS_CONTEXT.service2}) they want.
+        3. Say: "I'll have ${BUSINESS_CONTEXT.founder} reach out once I have your email and phone."
+        4. Do not stop until you get all 3 pieces of info.`
     };
 
     chatHistory.push({ role: "user", content: userText });
@@ -284,7 +279,7 @@ async function send() {
         }
         chatHistory.push({ role: "assistant", content: fullAIResponse });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection lost.";
+        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
     }
 }
 
