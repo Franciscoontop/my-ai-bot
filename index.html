@@ -205,10 +205,10 @@ async function send() {
     const userText = input.value.trim();
     if (!userText) return;
 
-    // Add User Message
+    // UI: Add User Message
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
-    // Add AI Bubble with Thinking Dots
+    // UI: Add AI Thinking Bubble
     const aiBubbleId = "ai-" + Date.now();
     container.innerHTML += `
         <div class="message-row ai-row">
@@ -234,6 +234,8 @@ async function send() {
             })
         });
 
+        if (!response.ok) throw new Error("Server down");
+
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         const aiBubble = document.getElementById(aiBubbleId);
@@ -246,36 +248,38 @@ async function send() {
             if (done) break;
 
             const chunk = decoder.decode(value);
-            const lines = chunk.split("\n");
+            // Split by "data: " to handle multiple JSON objects in one chunk
+            const parts = chunk.split("data: ");
 
-            lines.forEach(line => {
-                if (line.trim().startsWith("data: ")) {
-                    const jsonStr = line.replace("data: ", "").trim();
-                    if (jsonStr === "[DONE]") return;
+            for (const part of parts) {
+                const trimmed = part.trim();
+                if (!trimmed || trimmed === "[DONE]") continue;
 
-                    try {
-                        const json = JSON.parse(jsonStr);
-                        const content = json.choices[0].delta.content;
-                        if (content) {
-                            // Remove thinking dots as soon as the first word arrives
-                            if (!hasStartedTyping) {
-                                aiBubble.classList.remove('thinking-state');
-                                aiBubble.innerText = "";
-                                hasStartedTyping = true;
-                            }
-                            fullReply += content;
-                            aiBubble.innerText = fullReply;
-                            container.scrollTop = container.scrollHeight;
+                try {
+                    const json = JSON.parse(trimmed);
+                    const content = json.choices[0]?.delta?.content;
+                    if (content) {
+                        if (!hasStartedTyping) {
+                            aiBubble.classList.remove('thinking-state');
+                            aiBubble.innerHTML = ""; // Clear dots
+                            hasStartedTyping = true;
                         }
-                    } catch (e) { /* Skip partial JSON chunks */ }
+                        fullReply += content;
+                        // Use innerHTML + replace to handle line breaks correctly
+                        aiBubble.innerText = fullReply; 
+                        container.scrollTop = container.scrollHeight;
+                    }
+                } catch (e) {
+                    console.warn("Skipping partial chunk");
                 }
-            });
+            }
         }
 
         chatHistory.push({ role: "assistant", content: fullReply });
 
     } catch (err) {
-        document.getElementById(aiBubbleId).innerText = "Connection lost. Please refresh.";
+        console.error(err);
+        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost. Please refresh.</i>";
     }
 }
 // Start sequence
