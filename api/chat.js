@@ -13,19 +13,19 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // --- 1. DATA EXTRACTION ---
-    const nineDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{3}\b/;
+    // --- 1. DATA EXTRACTION (Updated to 10 Digits) ---
+    // Matches patterns like 123-456-7890 or 123.456.7890
+    const tenDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{4}\b/;
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
     const foundEmail = lastUserMsg.match(emailPattern)?.[0] || "Not provided yet";
-    const foundID = lastUserMsg.match(nineDigitPattern)?.[0] || "Not provided yet";
+    const foundPhone = lastUserMsg.match(tenDigitPattern)?.[0] || "Not provided yet";
     
-    // We only trigger Zapier if they just gave us the ID or the Email
-    const isTriggerMessage = nineDigitPattern.test(lastUserMsg) || emailPattern.test(lastUserMsg);
+    const isTriggerMessage = tenDigitPattern.test(lastUserMsg) || emailPattern.test(lastUserMsg);
 
     // Check history to avoid duplicate emails
     const alreadySent = messages.slice(0, -1).some(m => 
-      m.role === 'user' && (nineDigitPattern.test(m.content) || emailPattern.test(m.content))
+      m.role === 'user' && (tenDigitPattern.test(m.content) || emailPattern.test(m.content))
     );
 
     if (isTriggerMessage && !alreadySent) {
@@ -38,7 +38,7 @@ export default async function handler(req) {
         body: JSON.stringify({
           service_requested: serviceRequest,
           customer_email: foundEmail,
-          customer_id: foundID,
+          customer_phone: foundPhone,
           full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
@@ -51,10 +51,10 @@ export default async function handler(req) {
       DATABASE: ${sheetData}.
       
       INSTRUCTIONS:
-      1. Your first goal is to ask: "What specific service or task are you looking to automate today?"
-      2. Once they describe the service, explain how "THe dog" can help (3-4 sentences).
-      3. Finally, ask for their 9-digit Project ID (formatted as xxx-xxx-xxx) and their email address so you can send them a formal proposal.
-      4. Be professional, polished, and encouraging.
+      1. First goal: Ask "What specific service or task are you looking to automate today?"
+      2. Explain how "THe dog" solves that specific problem professionally (3-4 sentences).
+      3. Finally, ask for their 10-digit phone number (formatted as xxx-xxx-xxxx) and email so you can send a proposal.
+      4. Maintain a high-end, expert tone.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -67,7 +67,7 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.6,
+        temperature: 0.5,
         max_tokens: 450 
       }),
     });
