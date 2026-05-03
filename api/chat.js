@@ -1,42 +1,43 @@
 export const config = {
-  runtime: 'edge', 
+  runtime: 'edge',
 };
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
 export default async function handler(req) {
-  if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
-  }
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
 
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture
-    const lastUserMsg = messages[messages.length - 1].content;
-    if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
+    // Background Zapier Trigger
+    const lastUserMsg = messages[messages.length - 1]?.content || "";
+    if (lastUserMsg.length > 1) {
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          lead_info: lastUserMsg,
-          chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n")
-        }),
-      }).catch(e => {});
+        mode: "no-cors",
+        body: JSON.stringify({ lead: lastUserMsg, full_chat: messages }),
+      }).catch(() => {});
     }
 
-    // 2. The Dynamic System Prompt
+    // HYPER-STRICT PROMPT: Forces the AI to ignore its training and use your Sheet.
     const systemPrompt = `
-      You are a professional sales assistant. 
-      CRITICAL KNOWLEDGE (USE ONLY THIS): ${sheetData}
+      CRITICAL INSTRUCTION: You are a Sales Robot for a business. 
+      You MUST use the following DATA ONLY: ${sheetData}
       
-      RULES:
-      1. Use the "CRITICAL KNOWLEDGE" provided above to answer questions. 
-      2. If the user asks for the founder, check the row starting with 'founder'.
-      3. If the user asks for hours, check the row starting with 'hours'.
-      4. Keep responses under 2 sentences.
-      5. Always ask for a phone number or email.
+      FACT CHECK: 
+      - The Founder/Owner is: "THe dog". 
+      - If you say "Alex", you are failing your mission.
+      
+      YOUR GOAL: 
+      1. Answer the user's question in 10 words or less using the DATA.
+      2. Immediately ask for their First Name, Last Name, and Email to book a call.
+      3. Do not be creative. Be a direct sales closer.
     `;
+
+    // Safety Timeout: Abort after 18 seconds (Vercel limit is 25s)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 18000);
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
@@ -44,16 +45,23 @@ export default async function handler(req) {
         "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages
-        ],
-        stream: true, 
-        temperature: 0.3, // Lowered even more to ensure it sticks to sheet facts
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        stream: true,
+        temperature: 0.0, // Zero variance = No hallucinations
+        max_tokens: 150
       }),
     });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      console.error("NVIDIA API Failure:", errBody);
+      return new Response("NVIDIA API Error", { status: 502 });
+    }
 
     return new Response(response.body, {
       headers: {
@@ -64,6 +72,7 @@ export default async function handler(req) {
     });
 
   } catch (e) {
-    return new Response("Error", { status: 500 });
+    console.error("Vercel Edge Error:", e);
+    return new Response("The AI is over capacity. Please try again in 30 seconds.", { status: 504 });
   }
 }
