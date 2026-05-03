@@ -1,5 +1,5 @@
 export const config = {
-  runtime: 'edge', // This is the secret sauce for instant streaming on Vercel
+  runtime: 'edge', 
 };
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
@@ -12,10 +12,9 @@ export default async function handler(req) {
   try {
     const { messages } = await req.json();
 
-    // 1. Lead Capture logic (Surgical preservation of your regex)
+    // 1. Lead Capture logic
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
-      // We don't 'await' this so the AI response starts immediately
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -26,7 +25,7 @@ export default async function handler(req) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. Call NVIDIA API
+    // 2. Call NVIDIA API with strict conciseness instructions
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -35,9 +34,15 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: messages,
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a professional sales assistant. Rules: 1. Keep responses under 2 sentences. 2. Be punchy and direct. 3. Always ask for a phone number or email if you haven't received one yet. 4. Never use long paragraphs." 
+          },
+          ...messages
+        ],
         stream: true, 
-        temperature: 0.5,
+        temperature: 0.4, // Lowered to 0.4 to prevent rambling
       }),
     });
 
@@ -46,7 +51,6 @@ export default async function handler(req) {
     }
 
     // 3. Proper Stream Pipe for Edge
-    // This passes the stream directly from NVIDIA to the user's browser
     return new Response(response.body, {
       headers: {
         'Content-Type': 'text/event-stream',
