@@ -142,12 +142,6 @@ async function send(overrideMsg = null) {
     const userText = overrideMsg || input.value.trim();
     if (!userText) return;
 
-    fetch(ZAPIER_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, history: chatHistory })
-    }).catch(e => {});
 
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
