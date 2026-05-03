@@ -1,18 +1,21 @@
 export const config = {
-  maxDuration: 60,
+  runtime: 'edge', // This is the secret sauce for instant streaming on Vercel
 };
 
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
+export default async function handler(req) {
+  if (req.method !== 'POST') {
+    return new Response(JSON.stringify({ error: 'Method Not Allowed' }), { status: 405 });
+  }
 
   try {
-    const { messages } = req.body;
+    const { messages } = await req.json();
 
-    // 1. Lead Capture logic (Kept exactly as you had it)
+    // 1. Lead Capture logic (Surgical preservation of your regex)
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
+      // We don't 'await' this so the AI response starts immediately
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -23,11 +26,7 @@ export default async function handler(req, res) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. Set streaming headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
-    res.setHeader('Connection', 'keep-alive');
-
+    // 2. Call NVIDIA API
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -35,7 +34,7 @@ export default async function handler(req, res) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta/llama-3.1-8b-instruct", // Faster model selected
+        model: "meta/llama-3.1-8b-instruct",
         messages: messages,
         stream: true, 
         temperature: 0.5,
@@ -43,32 +42,21 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-        const errorText = await response.text();
-        console.error("NVIDIA API Error:", errorText);
-        return res.status(response.status).send("NVIDIA API Error");
+      return new Response("NVIDIA API Error", { status: response.status });
     }
 
-    // 3. Proper Stream Pipe
-    // We pipe the NVIDIA response directly to Vercel's response
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
+    // 3. Proper Stream Pipe for Edge
+    // This passes the stream directly from NVIDIA to the user's browser
+    return new Response(response.body, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        'Connection': 'keep-alive',
+      },
+    });
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) {
-        res.write("data: [DONE]\n\n");
-        break;
-      }
-      
-      const chunk = decoder.decode(value);
-      // NVIDIA already sends "data: {...}", so we just pass it through
-      res.write(chunk);
-    }
-
-    res.end();
   } catch (e) {
     console.error("Stream Error:", e);
-    if (!res.headersSent) res.status(500).send("Error");
-    res.end();
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
