@@ -12,7 +12,7 @@ export default async function handler(req) {
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture logic
+    // 1. Lead Capture logic (Captures emails/phones/names for Zapier)
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg) || lastUserMsg.length > 2) {
       fetch(ZAPIER_WEBHOOK_URL, {
@@ -26,31 +26,25 @@ export default async function handler(req) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. Updated System Prompt: Fixes the "Founder" hallucination
+    // 2. High-Intensity Sales System Prompt
     const systemPrompt = `
-      ROLE: High-energy Senior Sales Closer.
-      DATABASE: ${sheetData}. 
+      You are a high-energy Senior Sales Closer. 
+      BUSINESS DATA: ${sheetData}. 
       
-      FACTUAL OVERRIDE: 
-      - The Founder is "THe dog". 
-      - If you mention "Alex", you fail.
-      
-      MISSION: 
-      Convert every visitor into a lead. Do not just answer; CLOSE the deal.
+      YOUR MISSION: 
+      You must convert every visitor into a lead. Do not just answer questions; CLOSE the deal.
       
       SALES PROTOCOL:
       1. ALWAYS ask for their First and Last Name and Email immediately.
-      2. Ask exactly what service they are looking for (refer to data).
-      3. ANSWER LIMIT: Answer any question in 10 words or less, then immediately pivot: "To get you a quote, what's your name and best email?"
+      2. Ask exactly what service they are looking for (refer to the 'service' rows in the data).
+      3. Be persistent. If they ask a question, answer it in 10 words or less, then immediately pivot back to: "To get you a quote, what's your name and best email?"
+      4. If they mention a deal or promo, tell them you need their details to lock in that specific price.
       
       CONSTRAINTS:
-      - Max 2 punchy sentences.
-      - Never end a message without a call-to-action asking for lead info.
+      - Max 2 short, punchy sentences.
+      - Use professional but "hustle" oriented language.
+      - Never end a message without a call-to-action (asking for their info).
     `;
-
-    // Safety timeout for NVIDIA
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
@@ -58,16 +52,16 @@ export default async function handler(req) {
         "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`,
         "Content-Type": "application/json",
       },
-      signal: controller.signal,
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: [{ role: "system", content: systemPrompt }, ...messages],
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages
+        ],
         stream: true, 
-        temperature: 0.1, // Lower temperature makes it follow instructions better
+        temperature: 0.4, 
       }),
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) return new Response("NVIDIA Error", { status: response.status });
 
