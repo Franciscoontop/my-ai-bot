@@ -10,9 +10,9 @@ export default async function handler(req) {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture logic
+    // 1. Lead Capture
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
       fetch(ZAPIER_WEBHOOK_URL, {
@@ -22,10 +22,22 @@ export default async function handler(req) {
           lead_info: lastUserMsg,
           chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
-      }).catch(err => console.error("Zapier Error:", err));
+      }).catch(e => {});
     }
 
-    // 2. Call NVIDIA API with strict conciseness instructions
+    // 2. The Dynamic System Prompt
+    const systemPrompt = `
+      You are a professional sales assistant. 
+      CRITICAL KNOWLEDGE (USE ONLY THIS): ${sheetData}
+      
+      RULES:
+      1. Use the "CRITICAL KNOWLEDGE" provided above to answer questions. 
+      2. If the user asks for the founder, check the row starting with 'founder'.
+      3. If the user asks for hours, check the row starting with 'hours'.
+      4. Keep responses under 2 sentences.
+      5. Always ask for a phone number or email.
+    `;
+
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -35,32 +47,23 @@ export default async function handler(req) {
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
         messages: [
-          { 
-            role: "system", 
-            content: "You are a professional sales assistant. Rules: 1. Keep responses under 2 sentences. 2. Be punchy and direct. 3. Always ask for a phone number or email if you haven't received one yet. 4. Never use long paragraphs." 
-          },
+          { role: "system", content: systemPrompt },
           ...messages
         ],
         stream: true, 
-        temperature: 0.4, // Lowered to 0.4 to prevent rambling
+        temperature: 0.3, // Lowered even more to ensure it sticks to sheet facts
       }),
     });
 
-    if (!response.ok) {
-      return new Response("NVIDIA API Error", { status: response.status });
-    }
-
-    // 3. Proper Stream Pipe for Edge
     return new Response(response.body, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
+        'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
       },
     });
 
   } catch (e) {
-    console.error("Stream Error:", e);
-    return new Response("Internal Server Error", { status: 500 });
+    return new Response("Error", { status: 500 });
   }
 }
