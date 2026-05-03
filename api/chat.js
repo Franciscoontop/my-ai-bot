@@ -11,58 +11,59 @@ export default async function handler(req) {
 
   try {
     const { messages, sheetData } = await req.json();
-    const lastUserMsg = messages[messages.length - 1].content;
+    const allMessagesText = messages.map(m => m.content).join(" ");
 
-    // --- 1. DATA DETECTION PATTERNS ---
+    // --- 1. CLEAN DATA EXTRACTION ---
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     const phonePattern = /\b\d{3}[-.]\d{3}[-.]\d{4}\b/;
-    
-    // Check current message and history for all required pieces
-    const allMessagesText = messages.map(m => m.content).join(" ");
-    
+    const namePattern = /\b([A-Z][a-z]+|[a-z]+)\s+([A-Z][a-z]+|[a-z]+)\b/;
+
     const hasEmail = emailPattern.test(allMessagesText);
     const hasPhone = phonePattern.test(allMessagesText);
-    // Name check: Simply looks for at least two words (First Last) in any message
-    const hasFullName = /\b([A-Z][a-z]+|[a-z]+)\s+([A-Z][a-z]+|[a-z]+)\b/.test(allMessagesText);
+    const hasFullName = namePattern.test(allMessagesText);
 
-    // --- 2. THE "COMPLETE LEAD" GATEKEEPER ---
+    // --- 2. ZAPIER TRIGGER (ONLY WHEN COMPLETE) ---
     const isLeadComplete = hasEmail && hasPhone && hasFullName;
-    
-    // Check if we've already sent this lead to avoid duplicates
     const alreadySent = messages.slice(0, -1).some(m => m.zapierTriggered === true);
 
     if (isLeadComplete && !alreadySent) {
-      // Mark the current state as triggered
       messages[messages.length - 1].zapierTriggered = true;
+
+      // Extract specific pieces for short Gmail lines
+      const email = allMessagesText.match(emailPattern)?.[0] || "N/A";
+      const phone = allMessagesText.match(phonePattern)?.[0] || "N/A";
+      const nameMatch = allMessagesText.match(namePattern);
+      const fullName = nameMatch ? nameMatch[0] : "Check Transcript";
+      
+      // Find the message where they described their need
+      const serviceMsg = messages.find(m => m.role === 'user' && m.content.length > 15);
+      const serviceRequested = serviceMsg ? serviceMsg.content : "Inquiry";
 
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: "Provided in transcript",
-          email: allMessagesText.match(emailPattern)?.[0],
-          phone: allMessagesText.match(phonePattern)?.[0],
-          service_request: messages.find(m => m.role === 'user' && m.content.length > 15)?.content || "Consultation",
+          full_name: fullName,
+          email: email,
+          phone: phone,
+          service: serviceRequested,
           full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // --- 3. THE PERSISTENT CONSULTANT PROMPT ---
+    // --- 3. SHORT & PROFESSIONAL AI PROMPT ---
     const systemPrompt = `
-      ROLE: Professional AI Business Consultant.
+      ROLE: Professional AI Consultant. 
       FOUNDER: "THe dog". (Never mention Alex).
       DATABASE: ${sheetData}.
       
-      INSTRUCTIONS:
-      1. First, ask what specific service/task they need help with.
-      2. provide 3-4 professional sentences of value.
-      3. MANDATORY: You must collect the following three items before finishing:
-         - Full Name (First and Last)
-         - Email Address
-         - 10-digit Phone Number (xxx-xxx-xxxx)
-      4. If the user only gives one (e.g., just the email), politely ask for the missing items: "I've got your email, but to have THe dog reach out personally, could I also get your full name and the best phone number to reach you at?"
-      5. Do not stop asking until you have all three.
+      RULES:
+      1. Keep every response to MAX 2 short sentences.
+      2. First, ask what task they need help with.
+      3. Once they explain, briefly acknowledge and ask for their Full Name, Email, and 10-digit Phone.
+      4. Do not send the final proposal until you have all 3 pieces of contact info.
+      5. Be extremely polite but very concise.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -75,8 +76,8 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.5,
-        max_tokens: 450 
+        temperature: 0.4, // Lower temperature keeps it more focused/brief
+        max_tokens: 200   // Hard limit to prevent long paragraphs
       }),
     });
 
