@@ -35,7 +35,6 @@
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
         .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
         .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
-        .thinking-text { font-size: 12px; color: #888; margin-right: 4px; }
         .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
@@ -89,7 +88,8 @@ async function fetchSheetData() {
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
         const lines = csvText.split('\n');
-        SHEET_DATA_STRING = lines.join(" | ");
+        // Cleaning CSV for the AI
+        SHEET_DATA_STRING = lines.map(line => line.replace(/"/g, '').trim()).join(" | ");
 
         const promoRow = lines.find(l => l.toLowerCase().startsWith('promos'));
         if(promoRow) {
@@ -97,7 +97,7 @@ async function fetchSheetData() {
             if(promoVal) document.getElementById('modal-promo').innerText = promoVal;
         }
 
-        setGreeting(`Hey there! I can help you automate your business. To get started, what is your first and last name and your email address?`);
+        setGreeting(`Hey there! I'm the official AI assistant. To get you started with a custom plan, what is your first and last name and your email address?`);
     } catch (err) {
         setGreeting(`Hi! What's your name and email so we can get started?`);
     }
@@ -127,7 +127,7 @@ function claimOffer() {
     const promo = document.getElementById('modal-promo').innerText;
     closeModal();
     if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
-    send(`I'm interested in the ${promo} offer. My name is...`);
+    send(`I want to claim the ${promo} offer. My name is...`);
 }
 
 document.addEventListener('mousemove', (e) => {
@@ -142,13 +142,6 @@ async function send(overrideMsg = null) {
     const container = document.getElementById("response-container");
     const userText = overrideMsg || input.value.trim();
     if (!userText) return;
-
-    fetch(ZAPIER_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, history: chatHistory })
-    }).catch(e => {});
 
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
@@ -165,6 +158,8 @@ async function send(overrideMsg = null) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sheetData: SHEET_DATA_STRING, messages: chatHistory })
         });
+
+        if (!response.ok) throw new Error("API Limit reached");
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -199,7 +194,7 @@ async function send(overrideMsg = null) {
         }
         chatHistory.push({ role: "assistant", content: fullReply });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost.</i>";
+        document.getElementById(aiBubbleId).innerHTML = "<i>AI is taking a break. Please try again or leave your name!</i>";
     }
 }
 fetchSheetData();
