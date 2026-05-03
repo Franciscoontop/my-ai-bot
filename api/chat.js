@@ -11,47 +11,45 @@ export default async function handler(req) {
 
   try {
     const { messages, sheetData } = await req.json();
-
-    // 1. ZAPIER LOGIC: Only fire once and only on contact info
     const lastUserMsg = messages[messages.length - 1].content;
-    const hasContactInfo = /\S+@\S+\.\S+/.test(lastUserMsg) || /\b\d{7,}\b/.test(lastUserMsg);
-    
-    // Check if we've already sent a lead in this conversation history
+
+    // 1. STRICT ZAPIER LOGIC: Only fire if real info is found AND only once
+    const hasEmail = /\S+@\S+\.\S+/.test(lastUserMsg);
+    const hasPhone = /(\d[\s-]?){7,}/.test(lastUserMsg); // Needs at least 7 digits
     const alreadySent = messages.some(m => m.zapierSent === true);
 
-    if (hasContactInfo && !alreadySent) {
-      // Mark this message as the trigger so the history knows we sent it
+    if ((hasEmail || hasPhone) && !alreadySent) {
+      // Mark history so it doesn't fire again in this session
       messages[messages.length - 1].zapierSent = true;
 
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors", 
         body: JSON.stringify({
-          lead_found: lastUserMsg,
-          full_chat: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
-          founder: "THe dog"
+          lead_info: lastUserMsg,
+          chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          captured_at: new Date().toISOString()
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. PERSONALITY PROMPT: High Energy, Sharp, and Interactive
+    // 2. PROFESSIONAL CONSULTANT PROMPT
     const systemPrompt = `
-      ROLE: You are the brand's sharp, high-energy AI partner. You aren't a "sales rep"—you're the gatekeeper to a massive business upgrade.
+      ROLE: You are a Professional AI Business Consultant. 
+      FOUNDER: Your founder is "THe dog". (Never mention Alex).
+      KNOWLEDGE: Use this database: ${sheetData}.
       
-      CORE IDENTITY: 
-      - The Founder is "THe dog". (Never mention Alex).
-      - Use the DATABASE for facts: ${sheetData}.
+      TONE: Professional, insightful, and sophisticated. You are here to solve problems.
       
-      PERSONALITY:
-      - Witty, punchy, and slightly informal but highly professional.
-      - Think "Tech Founder" vibes, not "Telemarketer."
-      - Use words like "Legend," "Game-changer," "Let's roll."
+      CONVERSATION FLOW:
+      - Don't just give answers; be curious. Ask about their current business challenges or goals.
+      - Aim for 3-4 sentences per response to provide real value.
+      - If they ask about services, explain the benefit briefly, then ask a follow-up question like "How are you currently handling this process?"
+      - Once you've built rapport (usually after 2-3 messages), pivot to the lead capture: "To provide a tailored strategy for your specific needs, what's the best name and email to reach you at?"
       
-      INTERACTION RULES:
-      1. If they haven't given a name/email, your goal is to make them WANT to give it to you. 
-      2. Keep answers under 15 words. Be snappy.
-      3. Pivot every single time: "Love that energy. Drop your name and email so I can send you the blueprint."
-      4. If they give contact info, celebrate it: "Got it. You're a legend. THe dog is going to love this."
+      STRICT LIMITS:
+      - Never hallucinate features not in the database.
+      - Keep the focus on how "THe dog" can automate or scale their results.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -64,7 +62,8 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.8, // Increased temperature for more "personality" and less robotic speech
+        temperature: 0.6, // Balanced: Professional but not repetitive
+        max_tokens: 250   // Allows for longer, more helpful responses
       }),
     });
 
