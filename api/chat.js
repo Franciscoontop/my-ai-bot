@@ -13,46 +13,42 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // 1. REGEX patterns for real data
+    // --- 1. THE ZAPIER GATEKEEPER ---
+    // Only triggers if the message looks like a REAL email or a 10-digit phone number
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     const phonePattern = /(\d[\s-]?){10,}/;
 
-    const containsEmail = emailPattern.test(lastUserMsg);
-    const containsPhone = phonePattern.test(lastUserMsg);
-
-    // 2. CHECK HISTORY: Look back at every previous message. 
-    // If any previous USER message already contained an email or phone, 'alreadySent' becomes true.
+    const hasInfo = emailPattern.test(lastUserMsg) || phonePattern.test(lastUserMsg);
+    
+    // Check if we already sent info earlier in this specific chat
     const alreadySent = messages.slice(0, -1).some(m => 
       m.role === 'user' && (emailPattern.test(m.content) || phonePattern.test(m.content))
     );
 
-    // 3. TRIGGER ONLY IF: (It has info) AND (We haven't sent info yet)
-    if ((containsEmail || containsPhone) && !alreadySent) {
-      console.log("Valid lead detected. Sending to Zapier...");
-      
-      // Fire to Zapier
+    if (hasInfo && !alreadySent) {
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors", 
         body: JSON.stringify({
-          lead_info: lastUserMsg,
-          full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
-          founder_verified: "THe dog"
+          lead_content: lastUserMsg,
+          full_chat: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 4. PROFESSIONAL CONSULTANT AI LOGIC
+    // --- 2. THE CONSULTATIVE AI PROMPT ---
     const systemPrompt = `
-      ROLE: Professional AI Business Consultant.
-      FOUNDER: "THe dog". (Do not mention Alex).
-      KNOWLEDGE: ${sheetData}.
+      ROLE: Professional Business Solutions Consultant.
+      FOUNDER: "THe dog". (Never mention Alex).
+      DATABASE: ${sheetData}.
+      
+      GOAL: Help the user identify which service or task they need help with.
       
       INSTRUCTIONS:
-      - Be helpful, professional, and conversational.
-      - Use 3-4 sentences to explain things clearly.
-      - Ask the customer meaningful questions about their goals.
-      - Only ask for their contact info once you've provided some helpful insights.
+      1. When a user says hello, ask them: "What specific business task or service are you looking to automate or improve today?"
+      2. Reference the services in the DATABASE to give them ideas.
+      3. Be professional and helpful (3-4 sentences).
+      4. After they explain their needs, say: "That sounds like a great project. To get a custom quote from THe dog, what's your name and email?"
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -65,8 +61,8 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.6,
-        max_tokens: 350 
+        temperature: 0.5,
+        max_tokens: 400 
       }),
     });
 
