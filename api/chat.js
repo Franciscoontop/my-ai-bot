@@ -2,7 +2,6 @@ export const config = {
   runtime: 'edge', 
 };
 
-// Updated with your new webhook link
 const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvcaj3c/";
 
 export default async function handler(req) {
@@ -14,44 +13,48 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // --- 1. THE GATEKEEPER LOGIC ---
-    // Specifically looks for 9 digits with dashes or dots (e.g. 111-222-333)
+    // --- 1. DATA EXTRACTION ---
     const nineDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{3}\b/;
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
-    const hasNineDigit = nineDigitPattern.test(lastUserMsg);
-    const hasEmail = emailPattern.test(lastUserMsg);
+    const foundEmail = lastUserMsg.match(emailPattern)?.[0] || "Not provided yet";
+    const foundID = lastUserMsg.match(nineDigitPattern)?.[0] || "Not provided yet";
     
-    // Safety check: Don't send if we already sent info in this chat history
+    // We only trigger Zapier if they just gave us the ID or the Email
+    const isTriggerMessage = nineDigitPattern.test(lastUserMsg) || emailPattern.test(lastUserMsg);
+
+    // Check history to avoid duplicate emails
     const alreadySent = messages.slice(0, -1).some(m => 
       m.role === 'user' && (nineDigitPattern.test(m.content) || emailPattern.test(m.content))
     );
 
-    if ((hasNineDigit || hasEmail) && !alreadySent) {
-      // Fire to Zapier - Running on Edge, so no 'no-cors' needed
+    if (isTriggerMessage && !alreadySent) {
+      // Find the user's service request from the conversation
+      const serviceRequest = messages.find(m => m.role === 'user' && m.content.length > 10)?.content || "Check transcript";
+
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lead_info: lastUserMsg,
-          chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
-          founder: "THe dog"
+          service_requested: serviceRequest,
+          customer_email: foundEmail,
+          customer_id: foundID,
+          full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // --- 2. PROFESSIONAL CONSULTANT PROMPT ---
+    // --- 2. THE CONSULTATIVE AI PROMPT ---
     const systemPrompt = `
-      ROLE: Professional AI Consultant. 
+      ROLE: Professional AI Business Consultant.
       FOUNDER: "THe dog". (Never mention Alex).
-      KNOWLEDGE: ${sheetData}.
+      DATABASE: ${sheetData}.
       
-      BEHAVIOR:
-      1. Always start by asking: "What specific business task or service are you looking to automate or improve today?"
-      2. Provide thoughtful, professional advice (3-4 sentences).
-      3. Use a tone that is high-end, expert, and helpful.
-      4. Once you understand their needs, say: "To help THe dog get a custom strategy over to you, what is your best name and email?"
-      5. If they provide a 9-digit ID (xxx-xxx-xxx), acknowledge it as received.
+      INSTRUCTIONS:
+      1. Your first goal is to ask: "What specific service or task are you looking to automate today?"
+      2. Once they describe the service, explain how "THe dog" can help (3-4 sentences).
+      3. Finally, ask for their 9-digit Project ID (formatted as xxx-xxx-xxx) and their email address so you can send them a formal proposal.
+      4. Be professional, polished, and encouraging.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
