@@ -13,48 +13,56 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // --- 1. DATA EXTRACTION (Updated to 10 Digits) ---
-    // Matches patterns like 123-456-7890 or 123.456.7890
-    const tenDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{4}\b/;
+    // --- 1. DATA DETECTION PATTERNS ---
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-
-    const foundEmail = lastUserMsg.match(emailPattern)?.[0] || "Not provided yet";
-    const foundPhone = lastUserMsg.match(tenDigitPattern)?.[0] || "Not provided yet";
+    const phonePattern = /\b\d{3}[-.]\d{3}[-.]\d{4}\b/;
     
-    const isTriggerMessage = tenDigitPattern.test(lastUserMsg) || emailPattern.test(lastUserMsg);
+    // Check current message and history for all required pieces
+    const allMessagesText = messages.map(m => m.content).join(" ");
+    
+    const hasEmail = emailPattern.test(allMessagesText);
+    const hasPhone = phonePattern.test(allMessagesText);
+    // Name check: Simply looks for at least two words (First Last) in any message
+    const hasFullName = /\b([A-Z][a-z]+|[a-z]+)\s+([A-Z][a-z]+|[a-z]+)\b/.test(allMessagesText);
 
-    // Check history to avoid duplicate emails
-    const alreadySent = messages.slice(0, -1).some(m => 
-      m.role === 'user' && (tenDigitPattern.test(m.content) || emailPattern.test(m.content))
-    );
+    // --- 2. THE "COMPLETE LEAD" GATEKEEPER ---
+    const isLeadComplete = hasEmail && hasPhone && hasFullName;
+    
+    // Check if we've already sent this lead to avoid duplicates
+    const alreadySent = messages.slice(0, -1).some(m => m.zapierTriggered === true);
 
-    if (isTriggerMessage && !alreadySent) {
-      // Find the user's service request from the conversation
-      const serviceRequest = messages.find(m => m.role === 'user' && m.content.length > 10)?.content || "Check transcript";
+    if (isLeadComplete && !alreadySent) {
+      // Mark the current state as triggered
+      messages[messages.length - 1].zapierTriggered = true;
 
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          service_requested: serviceRequest,
-          customer_email: foundEmail,
-          customer_phone: foundPhone,
+          full_name: "Provided in transcript",
+          email: allMessagesText.match(emailPattern)?.[0],
+          phone: allMessagesText.match(phonePattern)?.[0],
+          service_request: messages.find(m => m.role === 'user' && m.content.length > 15)?.content || "Consultation",
           full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // --- 2. THE CONSULTATIVE AI PROMPT ---
+    // --- 3. THE PERSISTENT CONSULTANT PROMPT ---
     const systemPrompt = `
       ROLE: Professional AI Business Consultant.
       FOUNDER: "THe dog". (Never mention Alex).
       DATABASE: ${sheetData}.
       
       INSTRUCTIONS:
-      1. First goal: Ask "What specific service or task are you looking to automate today?"
-      2. Explain how "THe dog" solves that specific problem professionally (3-4 sentences).
-      3. Finally, ask for their 10-digit phone number (formatted as xxx-xxx-xxxx) and email so you can send a proposal.
-      4. Maintain a high-end, expert tone.
+      1. First, ask what specific service/task they need help with.
+      2. provide 3-4 professional sentences of value.
+      3. MANDATORY: You must collect the following three items before finishing:
+         - Full Name (First and Last)
+         - Email Address
+         - 10-digit Phone Number (xxx-xxx-xxxx)
+      4. If the user only gives one (e.g., just the email), politely ask for the missing items: "I've got your email, but to have THe dog reach out personally, could I also get your full name and the best phone number to reach you at?"
+      5. Do not stop asking until you have all three.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
