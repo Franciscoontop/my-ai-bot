@@ -13,40 +13,34 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const allMessagesText = messages.map(m => m.content).join(" ");
 
-    // --- 1. CLEAN DATA EXTRACTION ---
+    // --- 1. DATA DETECTION PATTERNS (The Micro-Fix) ---
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     const phonePattern = /\b\d{3}[-.]\d{3}[-.]\d{4}\b/;
-    const namePattern = /\b([A-Z][a-z]+|[a-z]+)\s+([A-Z][a-z]+|[a-z]+)\b/;
+    
+    // Scans ONLY user messages so the AI's "Hi Welcome" doesn't get picked up as the name
+    const userMessages = messages.filter(m => m.role === 'user').map(m => m.content).join(" ");
+    const nameMatch = userMessages.match(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/);
 
     const hasEmail = emailPattern.test(allMessagesText);
     const hasPhone = phonePattern.test(allMessagesText);
-    const hasFullName = namePattern.test(allMessagesText);
+    const hasFullName = nameMatch !== null;
 
     // --- 2. ZAPIER TRIGGER (ONLY WHEN COMPLETE) ---
     const isLeadComplete = hasEmail && hasPhone && hasFullName;
     const alreadySent = messages.slice(0, -1).some(m => m.zapierTriggered === true);
 
     if (isLeadComplete && !alreadySent) {
+      // Mark as triggered to prevent multiple emails
       messages[messages.length - 1].zapierTriggered = true;
-
-      // Extract specific pieces for short Gmail lines
-      const email = allMessagesText.match(emailPattern)?.[0] || "N/A";
-      const phone = allMessagesText.match(phonePattern)?.[0] || "N/A";
-      const nameMatch = allMessagesText.match(namePattern);
-      const fullName = nameMatch ? nameMatch[0] : "Check Transcript";
-      
-      // Find the message where they described their need
-      const serviceMsg = messages.find(m => m.role === 'user' && m.content.length > 15);
-      const serviceRequested = serviceMsg ? serviceMsg.content : "Inquiry";
 
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          full_name: fullName,
-          email: email,
-          phone: phone,
-          service: serviceRequested,
+          full_name: nameMatch ? nameMatch[0] : "Check Transcript",
+          email: allMessagesText.match(emailPattern)?.[0] || "N/A",
+          phone: allMessagesText.match(phonePattern)?.[0] || "N/A",
+          service: messages.find(m => m.role === 'user' && m.content.length > 15)?.content || "Inquiry",
           full_transcript: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
       }).catch(err => console.error("Zapier Error:", err));
@@ -76,8 +70,8 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.4, // Lower temperature keeps it more focused/brief
-        max_tokens: 200   // Hard limit to prevent long paragraphs
+        temperature: 0.4, 
+        max_tokens: 200   
       }),
     });
 
