@@ -1,516 +1,205 @@
- <!DOCTYPE html>
-
+<!DOCTYPE html>
 <html>
-
 <head>
-
     <title>AI Business Assistant</title>
-
     <meta name="viewport" content="width=device-width, initial-scale=1">
-
     <style>
-
         body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
-
-
-        #ai-widget-wrapper {
-
-            position: fixed;
-
-            top: 0; left: 0; width: 100%; height: 100%;
-
-            pointer-events: none; z-index: 2147483647 !important;
-
-        }
-
-
-        #exit-modal {
-
-            position: fixed; top: 50%; left: 50%;
-
-            transform: translate(-50%, -45%) scale(0.95);
-
-            width: 90%; max-width: 400px;
-
-            background: #111; border: 1px solid #333; border-radius: 24px;
-
-            padding: 40px; text-align: center;
-
-            box-shadow: 0px 30px 60px rgba(0,0,0,0.9);
-
-            pointer-events: none; z-index: 2147483648;
-
-            opacity: 0; visibility: hidden;
-
-            transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.5s;
-
-        }
-
-
-        #exit-modal.active {
-
-            opacity: 1; visibility: visible; pointer-events: auto;
-
-            transform: translate(-50%, -50%) scale(1);
-
-        }
-
-
+        #ai-widget-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647 !important; }
+        #exit-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -45%) scale(0.95); width: 90%; max-width: 400px; background: #111; border: 1px solid #333; border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0px 30px 60px rgba(0,0,0,0.9); pointer-events: none; z-index: 2147483648; opacity: 0; visibility: hidden; transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.5s; }
+        #exit-modal.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
         .modal-offer { font-size: 26px; font-weight: bold; margin-bottom: 12px; color: #fff; }
-
         .modal-text { font-size: 16px; margin-bottom: 24px; color: #aaa; }
-
         .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
-
         .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
-
-
-        #chat-bubble {
-
-            position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px;
-
-            background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-
-            cursor: pointer; pointer-events: auto; 
-
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
-
-            z-index: 2147483649;
-
-            transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.5s ease, height 0.5s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
-
-        }
-
-
+        #chat-bubble { position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); z-index: 2147483649; transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.5s ease, height 0.5s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
         #chat-bubble.active-spiral { bottom: 597px; right: 343px; width: 26px; height: 26px; transform: rotate(720deg); box-shadow: none; }
-
         #chat-bubble svg { transition: all 0.6s ease; }
-
         #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
-
-
-        #chat-window {
-
-            position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px;
-
-            max-height: 80vh; background: #111; border: 1px solid #333; border-radius: 20px;
-
-            display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
-
-            pointer-events: auto; overflow: hidden; opacity: 0; transition: opacity 0.5s ease;
-
-        }
-
-
+        #chat-window { position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px; max-height: 85svh; background: #111; border: 1px solid #333; border-radius: 20px; display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9); pointer-events: auto; overflow: hidden; opacity: 0; transition: opacity 0.5s ease; }
         #chat-window.open { display: flex; opacity: 1; }
-
         #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-
         .header-title { display: flex; align-items: center; gap: 10px; }
-
         .icon-dock { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
-
         .header-text b { display: block; font-size: 14px; color: #fff; }
-
         .header-text span { font-size: 11px; color: #00ff88; }
-
         #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; scroll-behavior: smooth; }
-
-        
-
         .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 90%; }
-
         .ai-row { align-self: flex-start; }
-
         .user-row { align-self: flex-end; flex-direction: row-reverse; }
-
-        
-
         .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-
         .ai-avatar { background: #fff; }
-
         .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-
-        
-
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; }
-
+        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
         .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
-
         .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
-
-        
-
         .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
-
         .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
-
         .thinking-text { font-size: 12px; color: #888; margin-right: 4px; }
-
         .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
-
         .dot:nth-child(2) { animation-delay: 0.2s; }
-
         .dot:nth-child(3) { animation-delay: 0.4s; }
-
-
         @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
-
-
         .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
-
         input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
-
         .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-
     </style>
-
 </head>
-
 <body>
 
-
 <div id="ai-widget-wrapper">
-
     <div id="exit-modal">
-
         <div class="modal-offer">Wait! Before you go... 🎁</div>
-
         <div class="modal-text" id="modal-offer-text">Claim your special offer!</div>
-
-        <div class="promo-code">OFFER20</div>
-
+        <div class="promo-code" id="modal-promo">OFFER20</div>
         <button class="close-modal-btn" onclick="claimOffer()">Claim Now</button>
-
         <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Dismiss</p>
-
     </div>
-
 
     <div id="chat-bubble" onclick="toggleChat()">
-
         <svg id="bubble-svg" style="width:30px; height:30px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-
     </div>
-
 
     <div id="chat-window">
-
         <div id="chat-header">
-
             <div class="header-title">
-
                 <div class="icon-dock"></div> 
-
                 <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
-
             </div>
-
             <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
-
         </div>
-
         <div id="response-container"></div>
-
         <div class="input-area">
-
-            <input id="msg" placeholder="Message..." onkeypress="if(event.key === 'Enter') send()" />
-
+            <input id="msg" placeholder="Message..." autocomplete="off" onkeypress="if(event.key === 'Enter') send()" />
             <button class="send-btn" onclick="send()">Send</button>
-
         </div>
-
     </div>
-
 </div>
 
-
 <script>
-
 const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
-
 const ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
 
-
-let BUSINESS_CONTEXT = {}; 
-
+let SHEET_DATA_STRING = ""; 
 let chatHistory = [];
-
 let hasPopped = false;
 
-
 async function fetchSheetData() {
-
     try {
-
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
-
         const csvText = await response.text();
-
         const lines = csvText.split('\n');
-
         
-
+        let tempContext = "";
         lines.forEach(line => {
-
-            const firstCommaIndex = line.indexOf(',');
-
-            if (firstCommaIndex !== -1) {
-
-                let key = line.substring(0, firstCommaIndex).trim().replace(/[:",]/g, '').toLowerCase();
-
-                let value = line.substring(firstCommaIndex + 1).trim().replace(/^["']|["']$/g, '').trim();
-
-                if (key && value) BUSINESS_CONTEXT[key] = value;
-
-            }
-
+            tempContext += line + " | "; // Capture everything: founder, hours, promo, etc.
         });
-
-
-        const currentOffer = BUSINESS_CONTEXT.offer || "exclusive demo";
-
-        document.getElementById('modal-offer-text').innerHTML = `Claim your <b>${currentOffer}</b> now!`;
-
-        setGreeting(`Hi! I'm the AI Assistant for ${BUSINESS_CONTEXT.description || 'our agency'}. We’re currently offering a <b>${currentOffer}</b>. How can I help you scale today?`);
-
-        
-
-    } catch (err) {
-
-        setGreeting(`Hi! I'm ready to help. How can I assist you with our automation services today?`);
-
-    }
-
-}
-
-
-function setGreeting(text) {
-
-    const container = document.getElementById("response-container");
-
-    container.innerHTML = `
-
-        <div class="message-row ai-row">
-
-            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
-
-            <div class="msg-bubble ai-msg">${text}</div>
-
-        </div>`;
-
-}
-
-
-function toggleChat() {
-
-    const win = document.getElementById('chat-window');
-
-    const bubble = document.getElementById('chat-bubble');
-
-    if (win.classList.contains('open')) {
-
-        win.classList.remove('open');
-
-        bubble.classList.remove('active-spiral');
-
-        setTimeout(() => { win.style.display = 'none'; }, 400);
-
-    } else {
-
-        win.style.display = 'flex';
-
-        setTimeout(() => { 
-
-            win.classList.add('open'); 
-
-            bubble.classList.add('active-spiral'); 
-
-        }, 10);
-
-    }
-
-}
-
-
-function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-
-function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
-
-
-document.addEventListener('mousemove', (e) => {
-
-    if (e.clientY < 10 && !hasPopped) {
-
-        document.getElementById('exit-modal').classList.add('active');
-
-        hasPopped = true;
-
-    }
-
-});
-
-
-async function send() {
-
-    const input = document.getElementById("msg");
-
-    const container = document.getElementById("response-container");
-
-    const userText = input.value.trim();
-
-    if (!userText) return;
-
-
-    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
-
-    
-
-    const aiBubbleId = "ai-" + Date.now();
-
-    container.innerHTML += `
-
-        <div class="message-row ai-row">
-
-            <div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div>
-
-            <div id="${aiBubbleId}" class="msg-bubble ai-msg thinking-state">
-
-                <div class="thinking-dots"><span class="thinking-text">Thinking</span><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
-
-            </div>
-
-        </div>`;
-
-    
-
-    // Zapier Trigger
-
-    if (userText.length > 2) {
-
-        fetch(ZAPIER_URL, {
-
-            method: "POST",
-
-            mode: "no-cors",
-
-            headers: { "Content-Type": "application/json" },
-
-            body: JSON.stringify({ 
-
-                lead_info: userText,
-
-                chat_history: chatHistory.map(m => `${m.role}: ${m.content}`).join("\n")
-
-            })
-
-        }).catch(err => console.log("Zapier sync active..."));
-
-    }
-
-
-    chatHistory.push({ role: "user", content: userText });
-
-    input.value = ""; 
-
-    container.scrollTop = container.scrollHeight;
-
-
-    try {
-
-        const response = await fetch("/api/chat", {
-
-            method: "POST",
-
-            headers: { "Content-Type": "application/json" },
-
-            body: JSON.stringify({ 
-
-                messages: [
-
-                    { role: "system", content: `You are the Senior Sales Closer for ${BUSINESS_CONTEXT.description || 'an automation agency'}. Be fast, friendly, and always ask for a phone number or email to book a call.` },
-
-                    ...chatHistory
-
-                ] 
-
-            })
-
-        });
-
-
-        if (!response.ok) throw new Error("Server down");
-
-
-        const reader = response.body.getReader();
-
-        const decoder = new TextDecoder();
-
-        const aiBubble = document.getElementById(aiBubbleId);
-
-        
-
-        let fullReply = "";
-
-        let hasStartedTyping = false;
-
-
-        while (true) {
-
-            const { done, value } = await reader.read();
-
-            if (done) break;
-
-            const chunk = decoder.decode(value);
-
-            const parts = chunk.split("data: ");
-
-
-            for (const part of parts) {
-
-                const trimmed = part.trim();
-
-                if (!trimmed || trimmed === "[DONE]") continue;
-
-                try {
-
-                    const json = JSON.parse(trimmed);
-
-                    const content = json.choices[0]?.delta?.content;
-
-                    if (content) {
-
-                        if (!hasStartedTyping) {
-
-                            aiBubble.classList.remove('thinking-state');
-
-                            aiBubble.innerHTML = "";
-
-                            hasStartedTyping = true;
-
-                        }
-
-                        fullReply += content;
-
-                        aiBubble.innerText = fullReply; 
-                        container.scrollTop = container.scrollHeight;
-                    }
-
-                } catch (e) {}
-
-            }
-
+        SHEET_DATA_STRING = tempContext;
+
+        // Auto-update the popup based on the 'promos' row in your sheet
+        const promoRow = lines.find(l => l.toLowerCase().startsWith('promos'));
+        if(promoRow) {
+            const promoVal = promoRow.split(',')[1]?.trim();
+            if(promoVal) document.getElementById('modal-promo').innerText = promoVal;
         }
 
-        chatHistory.push({ role: "assistant", content: fullReply });
-
-
+        setGreeting(`Hi! I'm the AI Assistant. I see you're interested in our automation services. How can I help you today?`);
+        
     } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost. Please refresh.</i>";
+        setGreeting(`Hi! How can I help you today?`);
+    }
+}
+
+function setGreeting(text) {
+    const container = document.getElementById("response-container");
+    container.innerHTML = `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div class="msg-bubble ai-msg">${text}</div></div>`;
+}
+
+function toggleChat() {
+    const win = document.getElementById('chat-window');
+    const bubble = document.getElementById('chat-bubble');
+    if (win.classList.contains('open')) {
+        win.classList.remove('open');
+        bubble.classList.remove('active-spiral');
+        setTimeout(() => { win.style.display = 'none'; }, 400);
+    } else {
+        win.style.display = 'flex';
+        setTimeout(() => { win.classList.add('open'); bubble.classList.add('active-spiral'); }, 10);
+    }
+}
+
+function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
+function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
+
+document.addEventListener('mousemove', (e) => {
+    if (e.clientY < 10 && !hasPopped) {
+        document.getElementById('exit-modal').classList.add('active');
+        hasPopped = true;
+    }
+});
+
+async function send() {
+    const input = document.getElementById("msg");
+    const container = document.getElementById("response-container");
+    const userText = input.value.trim();
+    if (!userText) return;
+
+    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
+    
+    const aiBubbleId = "ai-" + Date.now();
+    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg thinking-state"><div class="thinking-dots"><span class="thinking-text">Thinking</span><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
+    
+    container.scrollTop = container.scrollHeight;
+    chatHistory.push({ role: "user", content: userText });
+    input.value = ""; 
+
+    try {
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ 
+                sheetData: SHEET_DATA_STRING, // SENDING THE ENTIRE SHEET DATA HERE
+                messages: chatHistory
+            })
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        const aiBubble = document.getElementById(aiBubbleId);
+        let fullReply = "";
+        let hasStartedTyping = false;
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            const lines = chunk.split("\n");
+
+            for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                    try {
+                        const json = JSON.parse(line.slice(6));
+                        const content = json.choices[0]?.delta?.content;
+                        if (content) {
+                            if (!hasStartedTyping) {
+                                aiBubble.classList.remove('thinking-state');
+                                aiBubble.innerHTML = "";
+                                hasStartedTyping = true;
+                            }
+                            fullReply += content;
+                            aiBubble.innerText = fullReply;
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+        chatHistory.push({ role: "assistant", content: fullReply });
+    } catch (err) {
+        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost.</i>";
     }
 }
 fetchSheetData();
 </script>
 </body>
-</html> 
+</html>
