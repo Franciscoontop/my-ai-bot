@@ -90,13 +90,8 @@ async function fetchSheetData() {
         const csvText = await response.text();
         const lines = csvText.split('\n');
         
-        let tempContext = "";
-        lines.forEach(line => {
-            tempContext += line + " | "; // Capture everything: founder, hours, promo, etc.
-        });
-        SHEET_DATA_STRING = tempContext;
+        SHEET_DATA_STRING = lines.join(" | ");
 
-        // Auto-update the popup based on the 'promos' row in your sheet
         const promoRow = lines.find(l => l.toLowerCase().startsWith('promos'));
         if(promoRow) {
             const promoVal = promoRow.split(',')[1]?.trim();
@@ -104,7 +99,6 @@ async function fetchSheetData() {
         }
 
         setGreeting(`Hi! I'm the AI Assistant. I see you're interested in our automation services. How can I help you today?`);
-        
     } catch (err) {
         setGreeting(`Hi! How can I help you today?`);
     }
@@ -129,7 +123,14 @@ function toggleChat() {
 }
 
 function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
-function claimOffer() { closeModal(); if (!document.getElementById('chat-window').classList.contains('open')) toggleChat(); }
+
+function claimOffer() {
+    const promo = document.getElementById('modal-promo').innerText;
+    closeModal();
+    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
+    // Simulate user asking about the deal
+    send(`I want to claim the deal: ${promo}`);
+}
 
 document.addEventListener('mousemove', (e) => {
     if (e.clientY < 10 && !hasPopped) {
@@ -138,11 +139,19 @@ document.addEventListener('mousemove', (e) => {
     }
 });
 
-async function send() {
+async function send(overrideMsg = null) {
     const input = document.getElementById("msg");
     const container = document.getElementById("response-container");
-    const userText = input.value.trim();
+    const userText = overrideMsg || input.value.trim();
     if (!userText) return;
+
+    // Send to Zapier
+    fetch(ZAPIER_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userText, history: chatHistory })
+    }).catch(e => console.error("Zapier catch:", e));
 
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
@@ -151,14 +160,14 @@ async function send() {
     
     container.scrollTop = container.scrollHeight;
     chatHistory.push({ role: "user", content: userText });
-    input.value = ""; 
+    if(!overrideMsg) input.value = ""; 
 
     try {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ 
-                sheetData: SHEET_DATA_STRING, // SENDING THE ENTIRE SHEET DATA HERE
+                sheetData: SHEET_DATA_STRING,
                 messages: chatHistory
             })
         });
@@ -196,7 +205,7 @@ async function send() {
         }
         chatHistory.push({ role: "assistant", content: fullReply });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost.</i>";
+        document.getElementById(aiBubbleId).innerHTML = "<i>Error connecting...</i>";
     }
 }
 fetchSheetData();
