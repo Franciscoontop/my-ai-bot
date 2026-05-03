@@ -12,7 +12,7 @@ export default async function handler(req) {
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture logic (Captures emails/phones/names for Zapier)
+    // 1. Lead Capture logic (KEEPING YOUR WORKING VERSION)
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg) || lastUserMsg.length > 2) {
       fetch(ZAPIER_WEBHOOK_URL, {
@@ -26,24 +26,25 @@ export default async function handler(req) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. High-Intensity Sales System Prompt
+    // 2. High-Intensity Sales System Prompt (WITH FOUNDER FIX)
     const systemPrompt = `
       You are a high-energy Senior Sales Closer. 
       BUSINESS DATA: ${sheetData}. 
       
+      CRITICAL INSTRUCTION: 
+      The Founder/Owner is "THe dog". Do NOT say "Alex".
+      
       YOUR MISSION: 
-      You must convert every visitor into a lead. Do not just answer questions; CLOSE the deal.
+      Convert every visitor into a lead. Do not just answer questions; CLOSE the deal.
       
       SALES PROTOCOL:
       1. ALWAYS ask for their First and Last Name and Email immediately.
-      2. Ask exactly what service they are looking for (refer to the 'service' rows in the data).
-      3. Be persistent. If they ask a question, answer it in 10 words or less, then immediately pivot back to: "To get you a quote, what's your name and best email?"
-      4. If they mention a deal or promo, tell them you need their details to lock in that specific price.
+      2. Ask exactly what service they are looking for.
+      3. ANSWER LIMIT: Answer questions in 10 words or less, then immediately pivot: "To get you a quote, what's your name and best email?"
       
       CONSTRAINTS:
       - Max 2 short, punchy sentences.
-      - Use professional but "hustle" oriented language.
-      - Never end a message without a call-to-action (asking for their info).
+      - Never end a message without asking for their info.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -59,7 +60,7 @@ export default async function handler(req) {
           ...messages
         ],
         stream: true, 
-        temperature: 0.4, 
+        temperature: 0.3, // Keeps it focused but not "broken"
       }),
     });
 
