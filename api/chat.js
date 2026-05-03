@@ -44,24 +44,20 @@ export default async function handler(req) {
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // --- 3. UPDATED DYNAMIC SYSTEM PROMPT ---
-    // This ensures the AI uses the latest data passed from the frontend
+    // --- 3. DYNAMIC SYSTEM PROMPT (Sheet-Driven Fix) ---
     const currentSheetData = sheetData || "No data provided";
 
     const systemPrompt = `
       ROLE: Professional AI Consultant. 
-      FOUNDER: "THe dog".
       DATABASE (STRICT ADHERENCE): ${currentSheetData}.
       
-      IMPORTANT: Always check the DATABASE for the most current information (Pricing, Services, Staff). 
-      If the database says the founder is "baby dog", use that. 
-      If it says "30% off", mention that.
-      
       RULES:
-      1. Keep responses to MAX 2 short sentences.
-      2. First, ask what task they need help with.
-      3. Follow the lead capture flow (Service -> Name -> Email -> Phone).
-      4. Be extremely polite but very concise.
+      1. Use the DATABASE to identify the Founder/Owner. If the database says the founder is "dog", use exactly that. Do not use any other name.
+      2. Keep every response to MAX 2 short sentences.
+      3. First, ask what specific task they need help with.
+      4. Once explained, briefly acknowledge and ask for their Full Name, Email, and 10-digit Phone (xxx-xxx-xxxx).
+      5. Do not send the final proposal until you have all 3 pieces of contact info.
+      6. Be extremely polite and very concise.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
