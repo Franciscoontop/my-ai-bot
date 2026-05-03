@@ -13,43 +13,46 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // 1. STRICT ZAPIER LOGIC: Only fire if real info is found AND only once
-    const hasEmail = /\S+@\S+\.\S+/.test(lastUserMsg);
-    const hasPhone = /(\d[\s-]?){7,}/.test(lastUserMsg); // Needs at least 7 digits
-    const alreadySent = messages.some(m => m.zapierSent === true);
+    // --- STRICT ZAPIER LOGIC ---
+    
+    // 1. Check for VALID email (must have @ and .) or PHONE (must be 10+ digits)
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+    const phoneRegex = /(\d[\s-]?){10,}/;
+    
+    const hasValidEmail = emailRegex.test(lastUserMsg);
+    const hasValidPhone = phoneRegex.test(lastUserMsg);
 
-    if ((hasEmail || hasPhone) && !alreadySent) {
-      // Mark history so it doesn't fire again in this session
-      messages[messages.length - 1].zapierSent = true;
+    // 2. Scan entire history to see if we already sent a lead for this session
+    // This prevents a new email every time you send a follow-up message
+    const alreadySentInHistory = messages.some(m => 
+      m.role === 'user' && (emailRegex.test(m.content) || phoneRegex.test(m.content)) && m !== messages[messages.length - 1]
+    );
 
+    if ((hasValidEmail || hasValidPhone) && !alreadySentInHistory) {
+      // We only fire if info is present AND it's the first time it's appearing
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors", 
         body: JSON.stringify({
-          lead_info: lastUserMsg,
-          chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
-          captured_at: new Date().toISOString()
+          lead_detected: lastUserMsg,
+          full_chat_log: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          source: "AI Chatbot"
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. PROFESSIONAL CONSULTANT PROMPT
+    // --- PROFESSIONAL CONSULTANT PROMPT ---
     const systemPrompt = `
-      ROLE: You are a Professional AI Business Consultant. 
-      FOUNDER: Your founder is "THe dog". (Never mention Alex).
-      KNOWLEDGE: Use this database: ${sheetData}.
+      ROLE: Professional AI Consultant. 
+      FOUNDER: "THe dog". (Absolutely never say Alex).
+      DATABASE: ${sheetData}.
       
-      TONE: Professional, insightful, and sophisticated. You are here to solve problems.
-      
-      CONVERSATION FLOW:
-      - Don't just give answers; be curious. Ask about their current business challenges or goals.
-      - Aim for 3-4 sentences per response to provide real value.
-      - If they ask about services, explain the benefit briefly, then ask a follow-up question like "How are you currently handling this process?"
-      - Once you've built rapport (usually after 2-3 messages), pivot to the lead capture: "To provide a tailored strategy for your specific needs, what's the best name and email to reach you at?"
-      
-      STRICT LIMITS:
-      - Never hallucinate features not in the database.
-      - Keep the focus on how "THe dog" can automate or scale their results.
+      INSTRUCTIONS:
+      - Be professional, polite, and helpful. 
+      - Provide detailed answers (3-4 sentences) based on the DATABASE.
+      - Ask the user thoughtful questions about their business goals.
+      - Do not be a "pushy" salesman. Build rapport first.
+      - Only after providing value, ask: "To help you further, could you please provide your name and email?"
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -62,8 +65,8 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.6, // Balanced: Professional but not repetitive
-        max_tokens: 250   // Allows for longer, more helpful responses
+        temperature: 0.6,
+        max_tokens: 300 
       }),
     });
 
