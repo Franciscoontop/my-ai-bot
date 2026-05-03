@@ -2,7 +2,8 @@ export const config = {
   runtime: 'edge', 
 };
 
-const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
+// Updated with your new webhook link
+const ZAPIER_WEBHOOK_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvcaj3c/";
 
 export default async function handler(req) {
   if (req.method !== 'POST') {
@@ -13,44 +14,44 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // --- 1. THE REFINED GATEKEEPER ---
-    // This looks for 9 digits separated by dashes or dots: e.g., 123-456-789 or 123.456.789
+    // --- 1. THE GATEKEEPER LOGIC ---
+    // Specifically looks for 9 digits with dashes or dots (e.g. 111-222-333)
     const nineDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{3}\b/;
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
 
     const hasNineDigit = nineDigitPattern.test(lastUserMsg);
     const hasEmail = emailPattern.test(lastUserMsg);
     
-    // Check history to ensure we only fire ONCE per conversation
+    // Safety check: Don't send if we already sent info in this chat history
     const alreadySent = messages.slice(0, -1).some(m => 
       m.role === 'user' && (nineDigitPattern.test(m.content) || emailPattern.test(m.content))
     );
 
     if ((hasNineDigit || hasEmail) && !alreadySent) {
-      // Use a standard fetch without "no-cors" to ensure Zapier receives the body correctly
-      // Edge runtimes handle this better than browsers
+      // Fire to Zapier - Running on Edge, so no 'no-cors' needed
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lead_info: lastUserMsg,
-          chat_summary: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
-          type: hasNineDigit ? "9-Digit ID/Phone" : "Email"
+          chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          founder: "THe dog"
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // --- 2. THE CONSULTATIVE AI PROMPT ---
+    // --- 2. PROFESSIONAL CONSULTANT PROMPT ---
     const systemPrompt = `
-      ROLE: Professional Business Solutions Consultant.
+      ROLE: Professional AI Consultant. 
       FOUNDER: "THe dog". (Never mention Alex).
-      DATABASE: ${sheetData}.
+      KNOWLEDGE: ${sheetData}.
       
-      CONVERSATION LOGIC:
-      - Start by asking: "What specific business task or service are you looking to automate or improve today?"
-      - Provide professional, insightful advice (3-4 sentences).
-      - After helping them understand how "THe dog" can solve their problem, ask for their contact info.
-      - If they give you a 9-digit ID (like 123-456-789) or an email, acknowledge it professionally.
+      BEHAVIOR:
+      1. Always start by asking: "What specific business task or service are you looking to automate or improve today?"
+      2. Provide thoughtful, professional advice (3-4 sentences).
+      3. Use a tone that is high-end, expert, and helpful.
+      4. Once you understand their needs, say: "To help THe dog get a custom strategy over to you, what is your best name and email?"
+      5. If they provide a 9-digit ID (xxx-xxx-xxx), acknowledge it as received.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -64,7 +65,7 @@ export default async function handler(req) {
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
         temperature: 0.6,
-        max_tokens: 400 
+        max_tokens: 450 
       }),
     });
 
@@ -79,6 +80,6 @@ export default async function handler(req) {
     });
 
   } catch (e) {
-    return new Response("Error", { status: 500 });
+    return new Response("Internal Error", { status: 500 });
   }
 }
