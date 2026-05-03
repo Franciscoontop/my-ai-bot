@@ -13,25 +13,29 @@ export default async function handler(req) {
     const { messages, sheetData } = await req.json();
     const lastUserMsg = messages[messages.length - 1].content;
 
-    // --- 1. THE ZAPIER GATEKEEPER ---
-    // Only triggers if the message looks like a REAL email or a 10-digit phone number
+    // --- 1. THE REFINED GATEKEEPER ---
+    // This looks for 9 digits separated by dashes or dots: e.g., 123-456-789 or 123.456.789
+    const nineDigitPattern = /\b\d{3}[-.]\d{3}[-.]\d{3}\b/;
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-    const phonePattern = /(\d[\s-]?){10,}/;
 
-    const hasInfo = emailPattern.test(lastUserMsg) || phonePattern.test(lastUserMsg);
+    const hasNineDigit = nineDigitPattern.test(lastUserMsg);
+    const hasEmail = emailPattern.test(lastUserMsg);
     
-    // Check if we already sent info earlier in this specific chat
+    // Check history to ensure we only fire ONCE per conversation
     const alreadySent = messages.slice(0, -1).some(m => 
-      m.role === 'user' && (emailPattern.test(m.content) || phonePattern.test(m.content))
+      m.role === 'user' && (nineDigitPattern.test(m.content) || emailPattern.test(m.content))
     );
 
-    if (hasInfo && !alreadySent) {
+    if ((hasNineDigit || hasEmail) && !alreadySent) {
+      // Use a standard fetch without "no-cors" to ensure Zapier receives the body correctly
+      // Edge runtimes handle this better than browsers
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
-        mode: "no-cors", 
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lead_content: lastUserMsg,
-          full_chat: messages.map(m => `${m.role}: ${m.content}`).join("\n")
+          lead_info: lastUserMsg,
+          chat_summary: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          type: hasNineDigit ? "9-Digit ID/Phone" : "Email"
         }),
       }).catch(err => console.error("Zapier Error:", err));
     }
@@ -42,13 +46,11 @@ export default async function handler(req) {
       FOUNDER: "THe dog". (Never mention Alex).
       DATABASE: ${sheetData}.
       
-      GOAL: Help the user identify which service or task they need help with.
-      
-      INSTRUCTIONS:
-      1. When a user says hello, ask them: "What specific business task or service are you looking to automate or improve today?"
-      2. Reference the services in the DATABASE to give them ideas.
-      3. Be professional and helpful (3-4 sentences).
-      4. After they explain their needs, say: "That sounds like a great project. To get a custom quote from THe dog, what's your name and email?"
+      CONVERSATION LOGIC:
+      - Start by asking: "What specific business task or service are you looking to automate or improve today?"
+      - Provide professional, insightful advice (3-4 sentences).
+      - After helping them understand how "THe dog" can solve their problem, ask for their contact info.
+      - If they give you a 9-digit ID (like 123-456-789) or an email, acknowledge it professionally.
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -61,7 +63,7 @@ export default async function handler(req) {
         model: "meta/llama-3.1-8b-instruct",
         messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.5,
+        temperature: 0.6,
         max_tokens: 400 
       }),
     });
