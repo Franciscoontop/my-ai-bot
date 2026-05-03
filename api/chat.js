@@ -12,31 +12,30 @@ export default async function handler(req) {
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture
+    // 1. Lead Capture logic
     const lastUserMsg = messages[messages.length - 1].content;
     if (/\b\d{7,}\b/.test(lastUserMsg) || /\S+@\S+\.\S+/.test(lastUserMsg)) {
+      // Use standard fetch without 'await' to ensure background processing in Edge
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
+        mode: "no-cors", 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
           lead_info: lastUserMsg,
           chat_history: messages.map(m => `${m.role}: ${m.content}`).join("\n")
         }),
-      }).catch(e => {});
+      }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. The Dynamic System Prompt
-    const systemPrompt = `
-      You are a professional sales assistant. 
-      CRITICAL KNOWLEDGE (USE ONLY THIS): ${sheetData}
-      
-      RULES:
-      1. Use the "CRITICAL KNOWLEDGE" provided above to answer questions. 
-      2. If the user asks for the founder, check the row starting with 'founder'.
-      3. If the user asks for hours, check the row starting with 'hours'.
-      4. Keep responses under 2 sentences.
-      5. Always ask for a phone number or email.
-    `;
+    // 2. Optimized System Prompt
+    const systemPrompt = `You are a professional sales assistant. 
+    Use this business data ONLY: ${sheetData}. 
+    
+    Rules:
+    - Founder name is specifically in the 'founder' row.
+    - If someone mentions 'claim the deal', acknowledge the specific promo code they mentioned and ask for their contact info to apply it.
+    - Keep responses under 2 short sentences.
+    - Be friendly but very direct.`;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
@@ -51,19 +50,24 @@ export default async function handler(req) {
           ...messages
         ],
         stream: true, 
-        temperature: 0.3, // Lowered even more to ensure it sticks to sheet facts
+        temperature: 0.3,
       }),
     });
+
+    if (!response.ok) {
+      return new Response("NVIDIA API Error", { status: response.status });
+    }
 
     return new Response(response.body, {
       headers: {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
       },
     });
 
   } catch (e) {
-    return new Response("Error", { status: 500 });
+    console.error("Stream Error:", e);
+    return new Response("Internal Server Error", { status: 500 });
   }
 }
