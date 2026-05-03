@@ -12,45 +12,46 @@ export default async function handler(req) {
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. IMPROVED Lead Capture logic for Zapier
+    // 1. ZAPIER LOGIC: Only fire once and only on contact info
     const lastUserMsg = messages[messages.length - 1].content;
+    const hasContactInfo = /\S+@\S+\.\S+/.test(lastUserMsg) || /\b\d{7,}\b/.test(lastUserMsg);
     
-    // Trigger if message contains an email, a phone number (7+ digits), or is a standard intro
-    if (/\S+@\S+\.\S+/.test(lastUserMsg) || /\b\d{7,}\b/.test(lastUserMsg) || lastUserMsg.length > 3) {
-      const leadData = {
-        timestamp: new Date().toISOString(),
-        latest_message: lastUserMsg,
-        full_transcript: messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join("\n"),
-        platform: "AI Business Assistant"
-      };
+    // Check if we've already sent a lead in this conversation history
+    const alreadySent = messages.some(m => m.zapierSent === true);
 
-      // Fire and forget to Zapier
+    if (hasContactInfo && !alreadySent) {
+      // Mark this message as the trigger so the history knows we sent it
+      messages[messages.length - 1].zapierSent = true;
+
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors", 
-        body: JSON.stringify(leadData),
-      }).catch(err => console.error("Zapier Webhook Error:", err));
+        body: JSON.stringify({
+          lead_found: lastUserMsg,
+          full_chat: messages.map(m => `${m.role}: ${m.content}`).join("\n"),
+          founder: "THe dog"
+        }),
+      }).catch(err => console.error("Zapier Error:", err));
     }
 
-    // 2. High-Intensity Sales System Prompt (Founder: THe dog)
+    // 2. PERSONALITY PROMPT: High Energy, Sharp, and Interactive
     const systemPrompt = `
-      You are a high-energy Senior Sales Closer. 
-      BUSINESS DATA: ${sheetData}. 
+      ROLE: You are the brand's sharp, high-energy AI partner. You aren't a "sales rep"—you're the gatekeeper to a massive business upgrade.
       
-      CRITICAL: The Founder/Owner is "THe dog". Do NOT mention anyone named Alex.
+      CORE IDENTITY: 
+      - The Founder is "THe dog". (Never mention Alex).
+      - Use the DATABASE for facts: ${sheetData}.
       
-      MISSION: 
-      Convert every visitor into a lead. CLOSE the deal.
+      PERSONALITY:
+      - Witty, punchy, and slightly informal but highly professional.
+      - Think "Tech Founder" vibes, not "Telemarketer."
+      - Use words like "Legend," "Game-changer," "Let's roll."
       
-      SALES PROTOCOL:
-      1. ALWAYS ask for their First and Last Name and Email immediately.
-      2. If they ask a question, answer it in 10 words or less, then immediately pivot: "To get you started, what's your name and best email?"
-      3. Be persistent. Do not stop until you get the contact info.
-      
-      CONSTRAINTS:
-      - Max 2 short sentences.
-      - Use professional "hustle" language.
-      - Always end with a question about their contact info.
+      INTERACTION RULES:
+      1. If they haven't given a name/email, your goal is to make them WANT to give it to you. 
+      2. Keep answers under 15 words. Be snappy.
+      3. Pivot every single time: "Love that energy. Drop your name and email so I can send you the blueprint."
+      4. If they give contact info, celebrate it: "Got it. You're a legend. THe dog is going to love this."
     `;
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -61,16 +62,13 @@ export default async function handler(req) {
       },
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.2, 
+        temperature: 0.8, // Increased temperature for more "personality" and less robotic speech
       }),
     });
 
-    if (!response.ok) return new Response("NVIDIA Connection Error", { status: response.status });
+    if (!response.ok) return new Response("NVIDIA Error", { status: response.status });
 
     return new Response(response.body, {
       headers: {
@@ -81,6 +79,6 @@ export default async function handler(req) {
     });
 
   } catch (e) {
-    return new Response("Internal Server Error", { status: 500 });
+    return new Response("Error", { status: 500 });
   }
 }
