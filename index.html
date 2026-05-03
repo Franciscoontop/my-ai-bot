@@ -49,11 +49,11 @@
 
 <div id="ai-widget-wrapper">
     <div id="exit-modal">
-        <div class="modal-offer">Wait! Before you go... 🎁</div>
-        <div class="modal-text" id="modal-offer-text">Claim your special offer!</div>
-        <div class="promo-code" id="modal-promo">OFFER20</div>
-        <button class="close-modal-btn" onclick="claimOffer()">Claim Now</button>
-        <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Dismiss</p>
+        <div class="modal-offer">Ready to Grow? 🚀</div>
+        <div class="modal-text" id="modal-offer-text">Get a custom AI automation strategy.</div>
+        <div class="promo-code" id="modal-promo">FREE-DEMO</div>
+        <button class="close-modal-btn" onclick="claimOffer()">Get Started</button>
+        <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Maybe later</p>
     </div>
 
     <div id="chat-bubble" onclick="toggleChat()">
@@ -64,13 +64,13 @@
         <div id="chat-header">
             <div class="header-title">
                 <div class="icon-dock"></div> 
-                <div class="header-text"><b>AI Assistant</b><span>● Online</span></div>
+                <div class="header-text"><b>AI Assistant</b><span>● Active Now</span></div>
             </div>
             <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
         </div>
         <div id="response-container"></div>
         <div class="input-area">
-            <input id="msg" placeholder="Message..." autocomplete="off" onkeypress="if(event.key === 'Enter') send()" />
+            <input id="msg" placeholder="Type your name or question..." autocomplete="off" onkeypress="if(event.key === 'Enter') send()" />
             <button class="send-btn" onclick="send()">Send</button>
         </div>
     </div>
@@ -89,7 +89,6 @@ async function fetchSheetData() {
         const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
         const csvText = await response.text();
         const lines = csvText.split('\n');
-        
         SHEET_DATA_STRING = lines.join(" | ");
 
         const promoRow = lines.find(l => l.toLowerCase().startsWith('promos'));
@@ -98,9 +97,9 @@ async function fetchSheetData() {
             if(promoVal) document.getElementById('modal-promo').innerText = promoVal;
         }
 
-        setGreeting(`Hi! I'm the AI Assistant. I see you're interested in our automation services. How can I help you today?`);
+        setGreeting(`Hey there! I can help you automate your business. To get started, what is your first and last name and your email address?`);
     } catch (err) {
-        setGreeting(`Hi! How can I help you today?`);
+        setGreeting(`Hi! What's your name and email so we can get started?`);
     }
 }
 
@@ -128,8 +127,7 @@ function claimOffer() {
     const promo = document.getElementById('modal-promo').innerText;
     closeModal();
     if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
-    // Simulate user asking about the deal
-    send(`I want to claim the deal: ${promo}`);
+    send(`I'm interested in the ${promo} offer. My name is...`);
 }
 
 document.addEventListener('mousemove', (e) => {
@@ -145,18 +143,17 @@ async function send(overrideMsg = null) {
     const userText = overrideMsg || input.value.trim();
     if (!userText) return;
 
-    // Send to Zapier
     fetch(ZAPIER_URL, {
         method: "POST",
         mode: "no-cors",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: userText, history: chatHistory })
-    }).catch(e => console.error("Zapier catch:", e));
+    }).catch(e => {});
 
     container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
     
     const aiBubbleId = "ai-" + Date.now();
-    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg thinking-state"><div class="thinking-dots"><span class="thinking-text">Thinking</span><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
+    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg thinking-state"><div class="thinking-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
     
     container.scrollTop = container.scrollHeight;
     chatHistory.push({ role: "user", content: userText });
@@ -166,10 +163,7 @@ async function send(overrideMsg = null) {
         const response = await fetch("/api/chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ 
-                sheetData: SHEET_DATA_STRING,
-                messages: chatHistory
-            })
+            body: JSON.stringify({ sheetData: SHEET_DATA_STRING, messages: chatHistory })
         });
 
         const reader = response.body.getReader();
@@ -205,7 +199,7 @@ async function send(overrideMsg = null) {
         }
         chatHistory.push({ role: "assistant", content: fullReply });
     } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Error connecting...</i>";
+        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost.</i>";
     }
 }
 fetchSheetData();
