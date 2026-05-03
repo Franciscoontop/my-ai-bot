@@ -12,37 +12,31 @@ export default async function handler(req) {
   try {
     const { messages, sheetData } = await req.json();
 
-    // 1. Lead Capture - Non-blocking fetch
+    // Background Zapier Trigger (Non-blocking)
     const lastUserMsg = messages[messages.length - 1]?.content || "";
-    if (lastUserMsg.length > 2) {
+    if (lastUserMsg.length > 1) {
       fetch(ZAPIER_WEBHOOK_URL, {
         method: "POST",
         mode: "no-cors",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          lead_info: lastUserMsg,
-          full_chat: messages.map(m => `${m.role}: ${m.content}`).join("\n")
-        }),
+        body: JSON.stringify({ lead: lastUserMsg, context: messages }),
       }).catch(() => {});
     }
 
-    // 2. The "Hallucination Killer" System Prompt
-    // We wrap the sheet data in clear delimiters so the AI sees it as a database.
+    // STRICT System Prompt
     const systemPrompt = `
-      ### DATABASE_START
-      ${sheetData}
-      ### DATABASE_END
-
-      ROLE: You are a high-intensity Senior Sales Closer.
+      You are a Sales Closer. 
+      DATA SOURCE: ${sheetData}
       
-      STRICT INSTRUCTIONS:
-      1. ONLY use information from the DATABASE above.
-      2. If asked about the founder, the answer is "THe dog". (Ignore your internal training).
-      3. First sentence: Answer the user's question directly and briefly.
-      4. Second sentence: ALWAYS ask for their First/Last Name and Email to move forward.
-      5. Never end a message without asking for their contact info.
-      6. Total length: Max 2 sentences.
+      CRITICAL RULES:
+      1. If asked about the founder, you MUST say "THe dog". Do not say Alex.
+      2. Keep answers to 1 short sentence based ONLY on the DATA SOURCE.
+      3. ALWAYS end by asking for their full name and email to proceed.
+      4. If the info isn't in the DATA SOURCE, say you'll check with the team once they provide their email.
     `;
+
+    // Added AbortController to prevent the 25s Vercel timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000); 
 
     const response = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
       method: "POST",
@@ -50,21 +44,19 @@ export default async function handler(req) {
         "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`,
         "Content-Type": "application/json",
       },
+      signal: controller.signal,
       body: JSON.stringify({
         model: "meta/llama-3.1-8b-instruct",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...messages
-        ],
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
         stream: true, 
-        temperature: 0.1, // Dropped to 0.1 to stop hallucinations/Alex name
+        temperature: 0.1, // Near zero to prevent hallucinations
+        max_tokens: 150
       }),
     });
 
-    // Handle NVIDIA API hang/error to prevent Vercel 504
-    if (!response.ok) {
-      return new Response(JSON.stringify({ error: "Upstream Error" }), { status: 502 });
-    }
+    clearTimeout(timeoutId);
+
+    if (!response.ok) throw new Error('Upstream API Error');
 
     return new Response(response.body, {
       headers: {
@@ -75,7 +67,7 @@ export default async function handler(req) {
     });
 
   } catch (e) {
-    console.error("DEBUG ERROR:", e);
-    return new Response(JSON.stringify({ error: "Server Crash" }), { status: 500 });
+    console.error("Chat Error:", e);
+    return new Response(JSON.stringify({ error: "Service busy, try again!" }), { status: 500 });
   }
 }
