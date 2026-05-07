@@ -32,7 +32,11 @@ export default async function handler(req) {
     // in case someone uses the old widget without the new template.
     const emailPattern = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
     const phonePattern = /\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/;
-    const nameMatch    = userText.match(/\b([A-Z][a-z]{1,20})\s+([A-Z][a-z]{1,20})\b/);
+    // Accept any case (john smith / John Smith) — capitalize before saving
+    const rawName   = userText.match(/\b([a-zA-Z]{2,20})\s+([a-zA-Z]{2,20})\b/);
+    const nameMatch = rawName
+      ? [rawName[0].split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ')]
+      : null;
 
     const hasEmail    = emailPattern.test(allText);
     const hasPhone    = phonePattern.test(allText);
