@@ -1,201 +1,768 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>AI Business Assistant</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
-        #ai-widget-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647 !important; }
-        #exit-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -45%) scale(0.95); width: 90%; max-width: 400px; background: #111; border: 1px solid #333; border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0px 30px 60px rgba(0,0,0,0.9); pointer-events: none; z-index: 2147483648; opacity: 0; visibility: hidden; transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.5s; }
-        #exit-modal.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
-        .modal-offer { font-size: 26px; font-weight: bold; margin-bottom: 12px; color: #fff; }
-        .modal-text { font-size: 16px; margin-bottom: 24px; color: #aaa; }
-        .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; }
-        .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
-        #chat-bubble { position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; box-shadow: 0 0 15px rgba(255, 255, 255, 0.3); z-index: 2147483649; transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.5s ease, height 0.5s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
-        #chat-bubble.active-spiral { bottom: 597px; right: 343px; width: 26px; height: 26px; transform: rotate(720deg); box-shadow: none; }
-        #chat-bubble svg { transition: all 0.6s ease; }
-        #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
-        #chat-window { position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px; max-height: 85svh; background: #111; border: 1px solid #333; border-radius: 20px; display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9); pointer-events: auto; overflow: hidden; opacity: 0; transition: opacity 0.5s ease; }
-        #chat-window.open { display: flex; opacity: 1; }
-        #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .header-title { display: flex; align-items: center; gap: 10px; }
-        .icon-dock { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
-        .header-text b { display: block; font-size: 14px; color: #fff; }
-        .header-text span { font-size: 11px; color: #00ff88; }
-        #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; scroll-behavior: smooth; }
-        .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 90%; }
-        .ai-row { align-self: flex-start; }
-        .user-row { align-self: flex-end; flex-direction: row-reverse; }
-        .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .ai-avatar { background: #fff; }
-        .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-        .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
-        .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
-        .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
-        .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
-        .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
-        .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
-        .dot:nth-child(2) { animation-delay: 0.2s; }
-        .dot:nth-child(3) { animation-delay: 0.4s; }
-        @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
-        .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
-        input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
-        .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Web Insider AI Widget — Client Template</title>
+  <style>
+    /* ============================================================
+       BASE — swap body styles for whatever client site this goes on.
+       Everything else is scoped to #ai-widget-wrapper so it won't
+       clash with the client's existing CSS.
+       ============================================================ */
+    body { background: #000; color: #fff; font-family: sans-serif; margin: 0; min-height: 100vh; }
+
+    /* ============================================================
+       WIDGET WRAPPER
+       Fixed overlay, pointer-events:none so it never blocks the
+       client page. Only interactive children re-enable pointer events.
+       ============================================================ */
+    #ai-widget-wrapper {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 2147483647;
+    }
+
+    /* ============================================================
+       EXIT-INTENT MODAL
+       Fires once when the user's mouse leaves the top of the page.
+       Promo code is pulled dynamically from the Google Sheet.
+       ============================================================ */
+    #exit-modal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -45%) scale(0.95);
+      width: 90%; max-width: 400px;
+      background: #111; border: 1px solid #333; border-radius: 24px;
+      padding: 40px; text-align: center;
+      box-shadow: 0 30px 60px rgba(0,0,0,0.9);
+      pointer-events: none; z-index: 2147483648;
+      opacity: 0; visibility: hidden;
+      transition: opacity .5s ease, transform .5s cubic-bezier(.165,.84,.44,1), visibility .5s;
+    }
+    #exit-modal.active {
+      opacity: 1; visibility: visible; pointer-events: auto;
+      transform: translate(-50%,-50%) scale(1);
+    }
+    .modal-offer  { font-size: 26px; font-weight: bold; margin-bottom: 12px; color: #fff; }
+    .modal-text   { font-size: 16px; margin-bottom: 24px; color: #aaa; }
+    .promo-code   {
+      background: #1a1a1a; border: 1px dashed #444;
+      padding: 12px 24px; font-size: 22px; font-weight: bold;
+      border-radius: 12px; margin-bottom: 24px; color: #fff;
+    }
+    .close-modal-btn {
+      background: #fff; color: #000; border: none;
+      padding: 14px 30px; border-radius: 12px;
+      cursor: pointer; font-weight: bold; font-size: 15px;
+    }
+
+    /* ============================================================
+       CHAT BUBBLE — floating button, bottom-right.
+       Spirals/shrinks into the header icon when the window opens.
+       ============================================================ */
+    #chat-bubble {
+      position: absolute; bottom: 25px; right: 25px;
+      width: 60px; height: 60px;
+      background: #fff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; pointer-events: auto;
+      box-shadow: 0 0 15px rgba(255,255,255,0.3);
+      z-index: 2147483649;
+      transition: bottom .8s cubic-bezier(.34,1.56,.64,1),
+                  right .8s cubic-bezier(.34,1.56,.64,1),
+                  width .5s ease, height .5s ease,
+                  transform .8s cubic-bezier(.22,1,.36,1),
+                  box-shadow .3s ease;
+    }
+    #chat-bubble.active-spiral {
+      bottom: 597px; right: 343px;
+      width: 26px; height: 26px;
+      transform: rotate(720deg); box-shadow: none;
+    }
+    #chat-bubble svg             { transition: all .6s ease; }
+    #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
+
+    /* ============================================================
+       CHAT WINDOW
+       ============================================================ */
+    #chat-window {
+      position: absolute; bottom: 95px; right: 25px;
+      width: 360px; height: 550px; max-height: 85svh;
+      background: #111; border: 1px solid #333; border-radius: 20px;
+      display: none; flex-direction: column;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.9);
+      pointer-events: auto; overflow: hidden;
+      opacity: 0; transition: opacity .5s ease;
+    }
+    #chat-window.open { display: flex; opacity: 1; }
+
+    #chat-header {
+      background: #1a1a1a; padding: 15px;
+      border-bottom: 1px solid #333;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .header-title { display: flex; align-items: center; gap: 10px; }
+    .icon-dock    { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
+    .header-text b    { display: block; font-size: 14px; color: #fff; }
+    .header-text span { font-size: 11px; color: #00ff88; }
+
+    #response-container {
+      flex: 1; padding: 15px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 12px;
+      background: #050505; scroll-behavior: smooth;
+    }
+    .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 90%; }
+    .ai-row   { align-self: flex-start; }
+    .user-row { align-self: flex-end; flex-direction: row-reverse; }
+    .avatar {
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .ai-avatar   { background: #fff; }
+    .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
+    .msg-bubble  {
+      padding: 10px 14px; border-radius: 15px;
+      font-size: 14px; line-height: 1.5;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .ai-msg   { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
+    .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+
+    /* ── Review card that AI sends after a positive interaction ── */
+    .review-card {
+      background: #1a1a1a; border: 1px solid #333; border-radius: 12px;
+      padding: 14px; margin-top: 6px; font-size: 13px; color: #ccc;
+    }
+    .review-card strong { color: #fff; display: block; margin-bottom: 6px; }
+    .review-card p { margin: 0 0 10px; line-height: 1.5; }
+    .review-card .copy-btn {
+      background: #fff; color: #000; border: none;
+      padding: 7px 14px; border-radius: 8px;
+      cursor: pointer; font-size: 12px; font-weight: bold;
+    }
+
+    /* ── Typing indicator ── */
+    .ai-msg.thinking-state {
+      display: inline-flex !important; width: auto !important;
+      padding: 6px 12px !important; align-items: center;
+    }
+    .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
+    .dot {
+      width: 4px; height: 4px; background: #888; border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%,80%,100% { transform: translateY(0); }
+      40%          { transform: translateY(-5px); }
+    }
+
+    /* ── Input bar ── */
+    .input-area {
+      padding: 15px; background: #111;
+      border-top: 1px solid #333; display: flex; gap: 8px;
+    }
+    .input-area input {
+      flex: 1; padding: 10px; background: #1a1a1a;
+      border: 1px solid #444; color: #fff;
+      border-radius: 10px; outline: none; font-size: 14px;
+    }
+    .send-btn {
+      padding: 10px 15px; background: #fff; color: #000;
+      border: none; border-radius: 10px;
+      cursor: pointer; font-weight: bold;
+    }
+  </style>
 </head>
 <body>
 
+<!-- ============================================================
+     WEB INSIDER AI WIDGET
+     Drop the entire #ai-widget-wrapper div into any client site.
+     Configure the 8 variables at the top of the <script> block.
+     ============================================================ -->
 <div id="ai-widget-wrapper">
-    <div id="exit-modal">
-        <div class="modal-offer">Ready to Grow? 🚀</div>
-        <div class="modal-text" id="modal-offer-text">Get a custom AI automation strategy.</div>
-        <div class="promo-code" id="modal-promo">FREE-DEMO</div>
-        <button class="close-modal-btn" onclick="claimOffer()">Get Started</button>
-        <p style="font-size: 12px; color: #555; margin-top: 20px; cursor: pointer;" onclick="closeModal()">Maybe later</p>
-    </div>
 
-    <div id="chat-bubble" onclick="toggleChat()">
-        <svg id="bubble-svg" style="width:30px; height:30px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg>
-    </div>
+  <!-- EXIT-INTENT MODAL -->
+  <div id="exit-modal">
+    <div class="modal-offer">Don't Leave Yet! 🚀</div>
+    <div class="modal-text" id="modal-offer-text">Get a free demo before you go.</div>
+    <div class="promo-code" id="modal-promo">FREE-DEMO</div>
+    <button class="close-modal-btn" onclick="claimOffer()">Claim Offer</button>
+    <p style="font-size:12px;color:#555;margin-top:20px;cursor:pointer;" onclick="closeModal()">Maybe later</p>
+  </div>
 
-    <div id="chat-window">
-        <div id="chat-header">
-            <div class="header-title">
-                <div class="icon-dock"></div> 
-                <div class="header-text"><b>AI Assistant</b><span>● Active Now</span></div>
-            </div>
-            <span style="cursor:pointer; color:#666; font-size: 18px;" onclick="toggleChat()">✕</span>
+  <!-- FLOATING CHAT BUBBLE -->
+  <div id="chat-bubble" onclick="toggleChat()">
+    <svg id="bubble-svg" style="width:30px;height:30px;fill:#000" viewBox="0 0 24 24">
+      <path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z"/>
+    </svg>
+  </div>
+
+  <!-- CHAT WINDOW -->
+  <div id="chat-window">
+    <div id="chat-header">
+      <div class="header-title">
+        <div class="icon-dock"></div>
+        <div class="header-text">
+          <b id="chat-agent-name">AI Assistant</b>
+          <span>● Active Now</span>
         </div>
-        <div id="response-container"></div>
-        <div class="input-area">
-            <input id="msg" placeholder="Type your name or question..." autocomplete="off" onkeypress="if(event.key === 'Enter') send()" />
-            <button class="send-btn" onclick="send()">Send</button>
-        </div>
+      </div>
+      <span style="cursor:pointer;color:#666;font-size:18px;" onclick="toggleChat()">✕</span>
     </div>
-</div>
+    <div id="response-container"></div>
+    <div class="input-area">
+      <input id="msg" placeholder="Type your question..." autocomplete="off"
+             onkeypress="if(event.key==='Enter') send()"/>
+      <button class="send-btn" onclick="send()">Send</button>
+    </div>
+  </div>
+
+</div><!-- end #ai-widget-wrapper -->
+
 
 <script>
-const PUBLISHED_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv';
-const ZAPIER_URL = "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/";
+/* ================================================================
+   WEB INSIDER AI WIDGET — CLIENT TEMPLATE
+   ================================================================
 
-let SHEET_DATA_STRING = ""; 
-let chatHistory = [];
-let hasPopped = false;
+   HOW TO CONFIGURE FOR A NEW CLIENT:
+   Edit the 8 variables in the CONFIG block below.
+   Everything else is automatic.
 
-async function fetchSheetData() {
-    try {
-        const response = await fetch(PUBLISHED_SHEET_URL + '&cb=' + Date.now());
-        const csvText = await response.text();
-        const lines = csvText.split('\n');
-        SHEET_DATA_STRING = lines.join(" | ");
+   FEATURES INCLUDED:
+   ① FEATURE 2  — Content from Google Sheet (live, no redeploy needed)
+   ② FEATURE 3  — Review responder (drafts reply, saves to Sheet via Zapier)
+   ③ FEATURE 6  — Lead qualifier (name → goal → email → phone → booking time)
+   ④ FEATURE 8  — Lead notification email (fires via Zapier → Gmail when lead completes)
 
-        const promoRow = lines.find(l => l.toLowerCase().startsWith('promos'));
-        if(promoRow) {
-            const promoVal = promoRow.split(',')[1]?.trim();
-            if(promoVal) document.getElementById('modal-promo').innerText = promoVal;
-        }
+   ================================================================ */
 
-        setGreeting(`Hey there! I can help you automate your business. To get started, what is your first and last name and your email address?`);
-    } catch (err) {
-        setGreeting(`Hi! What's your name and email so we can get started?`);
+
+// ================================================================
+// ① CONFIG — Edit these 8 values for each new client
+// ================================================================
+
+const CONFIG = {
+
+  // Your client's published Google Sheet CSV URL.
+  // Sheet → File → Share → Publish to web → CSV → Copy link
+  // The sheet should have rows like:
+  //   business_name, The Iron Den
+  //   hours, Mon-Fri 9am-9pm
+  //   promos, SUMMER50
+  //   services, Haircuts $30 | Fades $35
+  //   booking_link, https://...
+  //   owner_email, owner@business.com   ← used for lead notifications
+  SHEET_URL: "https://docs.google.com/spreadsheets/d/e/YOUR_SHEET_ID/pub?output=csv",
+
+  // Zapier webhook #1 — Lead Notification (Feature 8)
+  // Zap: Webhooks → Catch Hook → Filter (only if email present) → Gmail → Send Email
+  // The email subject/body is pre-filled below in the payload.
+  ZAPIER_LEAD_URL: "https://hooks.zapier.com/hooks/catch/YOUR_ID/YOUR_LEAD_HOOK/",
+
+  // Zapier webhook #2 — Review Response (Feature 3)
+  // Zap: Webhooks → Catch Hook → Google Sheets → Create Row
+  // It will write: customer_name | review_text | drafted_reply | timestamp
+  ZAPIER_REVIEW_URL: "https://hooks.zapier.com/hooks/catch/YOUR_ID/YOUR_REVIEW_HOOK/",
+
+  // Name shown in the chat header (e.g. "Iron Den AI", "Bella's Assistant")
+  AGENT_NAME: "AI Assistant",
+
+  // Opening greeting sent before the user types anything.
+  // Use {business} as a placeholder — it gets replaced from the sheet.
+  GREETING: "Hey! 👋 Welcome to {business}. I can answer questions about our services, pricing, and hours — or help you book. What's your name so I know who I'm talking to?",
+
+  // Backend API route (your Vercel /api/chat.js file)
+  API_ROUTE: "/api/chat",
+
+  // Trigger words that make the AI offer to draft a review response.
+  // When a user says anything containing these words, the review flow starts.
+  REVIEW_TRIGGERS: ["review", "google review", "leave a review", "write a review"],
+
+  // How many messages before the AI asks for booking time (Feature 6 — qualifier step 4)
+  // Set higher if the business doesn't take bookings.
+  BOOKING_PROMPT_AFTER: 4,
+};
+
+
+// ================================================================
+// ② STATE — Internal variables, don't edit these
+// ================================================================
+
+let SHEET_DATA    = {};        // Parsed key→value from Google Sheet
+let SHEET_STRING  = "";        // Flat string version sent to AI
+let chatHistory   = [];        // Full conversation for multi-turn AI
+let hasPopped     = false;     // Exit modal fires only once
+let leadData      = {          // Tracks what we've collected so far
+  name:  null,
+  email: null,
+  phone: null,
+  goal:  null,
+  time:  null,
+};
+let leadSent      = false;     // Prevents duplicate Zapier lead pings
+let msgCount      = 0;         // Counts user messages sent
+
+
+// ================================================================
+// ③ FEATURE 2 — Google Sheet content loader
+//    Reads the sheet on page load. The AI gets the full sheet
+//    as context so it can answer questions about the business
+//    without needing a redeploy when info changes.
+//    To update the AI's knowledge: just edit the Google Sheet.
+// ================================================================
+
+async function loadSheetData() {
+  try {
+    const res  = await fetch(CONFIG.SHEET_URL + "&cb=" + Date.now());
+    const csv  = await res.text();
+    const rows = csv.split("\n").filter(r => r.trim());
+
+    rows.forEach(row => {
+      const [key, ...rest] = row.split(",");
+      if (key) SHEET_DATA[key.trim().toLowerCase()] = rest.join(",").trim();
+    });
+
+    SHEET_STRING = rows.map(r => r.replace(",", ": ")).join(" | ");
+
+    // Pull promo code for exit modal if sheet has a 'promos' row
+    if (SHEET_DATA["promos"]) {
+      document.getElementById("modal-promo").innerText = SHEET_DATA["promos"];
     }
+
+    // Set agent name from sheet if available, else use config
+    const agentName = SHEET_DATA["agent_name"] || CONFIG.AGENT_NAME;
+    document.getElementById("chat-agent-name").innerText = agentName;
+
+    // Show opening greeting with business name filled in
+    const businessName = SHEET_DATA["business_name"] || "us";
+    const greeting = CONFIG.GREETING.replace("{business}", businessName);
+    setGreeting(greeting);
+
+  } catch (err) {
+    setGreeting("Hey! I'm here to help. What's your name so I can get started?");
+  }
+}
+
+
+// ================================================================
+// ④ FEATURE 6 — Lead Qualifier
+//    Scans every user message for name, email, phone, and goal.
+//    Updates leadData incrementally so we never ask twice.
+//    When all 4 fields are collected, triggers Feature 8.
+// ================================================================
+
+function extractLeadData(text) {
+  // Email
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  if (emailMatch) leadData.email = emailMatch[0];
+
+  // Phone (flexible formats: 718-555-0000 / 7185550000 / (718) 555-0000)
+  const phoneMatch = text.match(/\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/);
+  if (phoneMatch) leadData.phone = phoneMatch[0];
+
+  // Full name — two capitalized words
+  const nameMatch = text.match(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/);
+  if (nameMatch && !leadData.name) leadData.name = nameMatch[0];
+
+  // Goal keywords
+  const goalKeywords = ["looking for","want","need","trying to","interested in","book","appointment","price","cost","hours","service"];
+  const lower = text.toLowerCase();
+  if (!leadData.goal && goalKeywords.some(k => lower.includes(k))) {
+    leadData.goal = text.slice(0, 120);
+  }
+}
+
+function isLeadComplete() {
+  return leadData.name && leadData.email && leadData.phone;
+}
+
+// Build a status string injected into every AI system prompt
+// so the AI always knows what it has and what to collect next.
+function buildLeadStatus() {
+  return `
+LEAD STATUS (do not ask for info already collected):
+- Name  : ${leadData.name  || "MISSING — ask naturally"}
+- Email : ${leadData.email || "MISSING — ask naturally"}
+- Phone : ${leadData.phone || "MISSING — ask naturally"}
+- Goal  : ${leadData.goal  || "MISSING — find out what they need"}
+- Lead complete: ${isLeadComplete() ? "YES" : "NO"}
+`.trim();
+}
+
+
+// ================================================================
+// ⑤ FEATURE 8 — Lead Notification Email (via Zapier → Gmail)
+//    Fires once when name + email + phone are all collected.
+//    Zapier setup: Webhooks Catch Hook → Gmail Send Email
+//    In your Zap, map these fields to the Gmail template:
+//      to      → owner_email (or hardcode in Zapier)
+//      subject → subject
+//      body    → body
+// ================================================================
+
+async function sendLeadNotification() {
+  if (leadSent) return;
+  leadSent = true;
+
+  const ownerEmail = SHEET_DATA["owner_email"] || "owner@business.com";
+  const transcript = chatHistory.map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`).join("\n");
+
+  const payload = {
+    to:           ownerEmail,
+    subject:      `🔥 New Lead: ${leadData.name} — ${SHEET_DATA["business_name"] || "Your Site"}`,
+    body: `
+You have a new qualified lead from your website AI assistant.
+
+Name  : ${leadData.name}
+Email : ${leadData.email}
+Phone : ${leadData.phone}
+Goal  : ${leadData.goal || "Not specified"}
+Time  : ${new Date().toLocaleString()}
+
+--- Full Conversation ---
+${transcript}
+    `.trim(),
+    // Raw fields in case you want to use them in Zapier filters or Sheets
+    lead_name:  leadData.name,
+    lead_email: leadData.email,
+    lead_phone: leadData.phone,
+    lead_goal:  leadData.goal || "",
+    transcript: transcript,
+  };
+
+  try {
+    await fetch(CONFIG.ZAPIER_LEAD_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(payload),
+    });
+    console.log("Lead notification sent to Zapier.");
+  } catch (err) {
+    console.error("Lead notification failed:", err);
+  }
+}
+
+
+// ================================================================
+// ⑥ FEATURE 3 — Review Responder
+//    Triggered when the user mentions "review" in their message.
+//    1. AI asks what experience they'd like to leave a review about
+//    2. AI drafts a professional Google review response
+//    3. Response is shown in a copy-able card in the chat
+//    4. Payload is sent to Zapier → Google Sheet for owner approval
+//
+//    Google Sheet columns (set this up in your Zap):
+//    timestamp | customer_name | review_text | drafted_reply | status
+// ================================================================
+
+function isReviewTrigger(text) {
+  const lower = text.toLowerCase();
+  return CONFIG.REVIEW_TRIGGERS.some(t => lower.includes(t));
+}
+
+async function handleReviewFlow(customerMessage) {
+  // Ask the AI to draft a Google review reply
+  const reviewPrompt = `
+The customer said: "${customerMessage}"
+They want to leave a Google review or are asking about reviews.
+
+Do two things:
+1. Thank them warmly and ask them to briefly describe their experience (1-2 sentences max).
+2. After they describe it, draft a professional, warm, specific Google review response the business owner can post.
+Format the draft clearly starting with "REVIEW REPLY DRAFT:" on its own line.
+`;
+
+  chatHistory.push({ role: "user", content: customerMessage });
+
+  const aiBubbleId = "ai-" + Date.now();
+  appendThinkingBubble(aiBubbleId);
+
+  const reply = await streamAIResponse([
+    ...chatHistory,
+    { role: "user", content: reviewPrompt }
+  ], aiBubbleId);
+
+  chatHistory.push({ role: "assistant", content: reply });
+
+  // If the reply contains a draft, extract it and show the copy card + send to Zapier
+  if (reply.includes("REVIEW REPLY DRAFT:")) {
+    const draftStart = reply.indexOf("REVIEW REPLY DRAFT:") + "REVIEW REPLY DRAFT:".length;
+    const draft = reply.slice(draftStart).trim();
+
+    // Show copy card
+    showReviewCard(draft);
+
+    // Send to Google Sheet via Zapier
+    sendReviewToSheet({
+      customer_name:  leadData.name || "Anonymous",
+      review_text:    customerMessage,
+      drafted_reply:  draft,
+      timestamp:      new Date().toLocaleString(),
+    });
+  }
+}
+
+function showReviewCard(draftText) {
+  const container = document.getElementById("response-container");
+  const card = document.createElement("div");
+  card.className = "message-row ai-row";
+  card.innerHTML = `
+    <div class="avatar ai-avatar">
+      <svg style="width:14px;height:14px;fill:#000" viewBox="0 0 24 24">
+        <path d="M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5"/>
+      </svg>
+    </div>
+    <div class="review-card">
+      <strong>📋 Review Reply Draft — ready to copy</strong>
+      <p id="review-draft-text">${draftText}</p>
+      <button class="copy-btn" onclick="copyReviewDraft()">Copy to Clipboard</button>
+    </div>
+  `;
+  container.appendChild(card);
+  container.scrollTop = container.scrollHeight;
+}
+
+function copyReviewDraft() {
+  const text = document.getElementById("review-draft-text")?.innerText || "";
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(".copy-btn");
+    if (btn) { btn.innerText = "Copied! ✓"; setTimeout(() => btn.innerText = "Copy to Clipboard", 2000); }
+  });
+}
+
+async function sendReviewToSheet(data) {
+  try {
+    await fetch(CONFIG.ZAPIER_REVIEW_URL, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(data),
+    });
+    console.log("Review draft saved to sheet via Zapier.");
+  } catch (err) {
+    console.error("Review Zapier failed:", err);
+  }
+}
+
+
+// ================================================================
+// ⑦ MAIN SEND FUNCTION
+//    Handles all user messages. Routes to review flow if triggered,
+//    otherwise sends to the AI with full lead status context.
+// ================================================================
+
+async function send(overrideMsg = null) {
+  const input     = document.getElementById("msg");
+  const container = document.getElementById("response-container");
+  const userText  = overrideMsg || input.value.trim();
+  if (!userText) return;
+
+  // Render user bubble
+  container.innerHTML +=
+    `<div class="message-row user-row">
+       <div class="avatar user-avatar">U</div>
+       <div class="msg-bubble user-msg">${userText}</div>
+     </div>`;
+
+  if (!overrideMsg) input.value = "";
+  msgCount++;
+
+  // Extract any lead data from this message
+  extractLeadData(userText);
+
+  // Fire lead notification the moment we have all 3 fields
+  if (isLeadComplete() && !leadSent) {
+    sendLeadNotification();
+  }
+
+  // Route to review flow if triggered
+  if (isReviewTrigger(userText)) {
+    await handleReviewFlow(userText);
+    return;
+  }
+
+  // Standard AI response
+  chatHistory.push({ role: "user", content: userText });
+
+  const aiBubbleId = "ai-" + Date.now();
+  appendThinkingBubble(aiBubbleId);
+  container.scrollTop = container.scrollHeight;
+
+  const reply = await streamAIResponse(chatHistory, aiBubbleId);
+  chatHistory.push({ role: "assistant", content: reply });
+}
+
+
+// ================================================================
+// ⑧ AI STREAM — calls your backend /api/chat
+//    Sends chatHistory + sheetData + leadStatus as context.
+//    Streams the response token by token into the chat bubble.
+// ================================================================
+
+async function streamAIResponse(messages, bubbleId) {
+  const aiBubble = document.getElementById(bubbleId);
+  let fullReply = "";
+  let hasStartedTyping = false;
+
+  // Build system context injected with every request
+  const systemContext = `
+You are a helpful AI assistant for this business.
+Personality: friendly, direct, helpful. Never robotic.
+
+BUSINESS INFO:
+${SHEET_STRING}
+
+${buildLeadStatus()}
+
+SALES RULES:
+- Collect name first, then find out their goal, then email, then phone — one at a time, naturally.
+- Never ask for info already in the lead status above.
+- Always end your reply with a question or a clear next step.
+- If lead is complete, confirm their info and tell them the owner will be in touch shortly.
+- Keep replies to 2-4 sentences. Always finish your thought completely.
+- If you don't know the answer, say: "I'd recommend calling or stopping by during business hours."
+`.trim();
+
+  try {
+    const res = await fetch(CONFIG.API_ROUTE, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({
+        sheetData:     SHEET_STRING,
+        systemContext: systemContext,
+        messages:      messages.map(m => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer    = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+
+      for (const line of lines) {
+        if (!line.trim().startsWith("data: ")) continue;
+        const raw = line.trim().slice(6);
+        if (!raw || raw === "[DONE]") continue;
+        try {
+          const parsed  = JSON.parse(raw);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            if (!hasStartedTyping) {
+              aiBubble.classList.remove("thinking-state");
+              aiBubble.innerHTML = "";
+              hasStartedTyping = true;
+            }
+            fullReply += content;
+            aiBubble.innerText = fullReply;
+            document.getElementById("response-container").scrollTop = 9999;
+          }
+        } catch (_) {}
+      }
+    }
+
+    // Flush remainder
+    if (buffer.trim().startsWith("data: ")) {
+      const raw = buffer.trim().slice(6);
+      if (raw && raw !== "[DONE]") {
+        try {
+          const parsed  = JSON.parse(raw);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullReply += content;
+            aiBubble.innerText = fullReply;
+          }
+        } catch (_) {}
+      }
+    }
+
+  } catch (err) {
+    if (aiBubble) aiBubble.innerHTML = "<i>Connection lost. Please try again.</i>";
+  }
+
+  return fullReply;
+}
+
+
+// ================================================================
+// ⑨ UI HELPERS
+// ================================================================
+
+function appendThinkingBubble(id) {
+  const container = document.getElementById("response-container");
+  container.innerHTML +=
+    `<div class="message-row ai-row">
+       <div class="avatar ai-avatar">
+         <svg style="width:14px;height:14px;fill:#000" viewBox="0 0 24 24">
+           <path d="M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5"/>
+         </svg>
+       </div>
+       <div id="${id}" class="msg-bubble ai-msg thinking-state">
+         <div class="thinking-dots">
+           <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+         </div>
+       </div>
+     </div>`;
 }
 
 function setGreeting(text) {
-    const container = document.getElementById("response-container");
-    container.innerHTML = `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div class="msg-bubble ai-msg">${text}</div></div>`;
+  document.getElementById("response-container").innerHTML =
+    `<div class="message-row ai-row">
+       <div class="avatar ai-avatar">
+         <svg style="width:14px;height:14px;fill:#000" viewBox="0 0 24 24">
+           <path d="M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5"/>
+         </svg>
+       </div>
+       <div class="msg-bubble ai-msg">${text}</div>
+     </div>`;
 }
 
 function toggleChat() {
-    const win = document.getElementById('chat-window');
-    const bubble = document.getElementById('chat-bubble');
-    if (win.classList.contains('open')) {
-        win.classList.remove('open');
-        bubble.classList.remove('active-spiral');
-        setTimeout(() => { win.style.display = 'none'; }, 400);
-    } else {
-        win.style.display = 'flex';
-        setTimeout(() => { win.classList.add('open'); bubble.classList.add('active-spiral'); }, 10);
-    }
+  const win    = document.getElementById("chat-window");
+  const bubble = document.getElementById("chat-bubble");
+  if (win.classList.contains("open")) {
+    win.classList.remove("open");
+    bubble.classList.remove("active-spiral");
+    setTimeout(() => { win.style.display = "none"; }, 400);
+  } else {
+    win.style.display = "flex";
+    setTimeout(() => { win.classList.add("open"); bubble.classList.add("active-spiral"); }, 10);
+  }
 }
 
-function closeModal() { document.getElementById('exit-modal').classList.remove('active'); }
+function closeModal() { document.getElementById("exit-modal").classList.remove("active"); }
 
 function claimOffer() {
-    const promo = document.getElementById('modal-promo').innerText;
-    closeModal();
-    if (!document.getElementById('chat-window').classList.contains('open')) toggleChat();
-    send(`I'm interested in the ${promo} offer. My name is...`);
+  const promo = document.getElementById("modal-promo").innerText;
+  closeModal();
+  if (!document.getElementById("chat-window").classList.contains("open")) toggleChat();
+  send(`I want to claim the ${promo} offer.`);
 }
 
-document.addEventListener('mousemove', (e) => {
-    if (e.clientY < 10 && !hasPopped) {
-        document.getElementById('exit-modal').classList.add('active');
-        hasPopped = true;
-    }
+// Exit-intent: fires once when mouse leaves top of page
+document.addEventListener("mousemove", e => {
+  if (e.clientY < 10 && !hasPopped) {
+    document.getElementById("exit-modal").classList.add("active");
+    hasPopped = true;
+  }
 });
 
-async function send(overrideMsg = null) {
-    const input = document.getElementById("msg");
-    const container = document.getElementById("response-container");
-    const userText = overrideMsg || input.value.trim();
-    if (!userText) return;
 
+// ================================================================
+// ⑩ INIT
+// ================================================================
+loadSheetData();
 
-    container.innerHTML += `<div class="message-row user-row"><div class="avatar user-avatar">U</div><div class="msg-bubble user-msg">${userText}</div></div>`;
-    
-    const aiBubbleId = "ai-" + Date.now();
-    container.innerHTML += `<div class="message-row ai-row"><div class="avatar ai-avatar"><svg style="width:14px; height:14px; fill:#000" viewBox="0 0 24 24"><path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z" /></svg></div><div id="${aiBubbleId}" class="msg-bubble ai-msg thinking-state"><div class="thinking-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`;
-    
-    container.scrollTop = container.scrollHeight;
-    chatHistory.push({ role: "user", content: userText });
-    if(!overrideMsg) input.value = ""; 
-
-    try {
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ sheetData: SHEET_DATA_STRING, messages: chatHistory })
-        });
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        const aiBubble = document.getElementById(aiBubbleId);
-        let fullReply = "";
-        let hasStartedTyping = false;
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value);
-            const lines = chunk.split("\n");
-
-            for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                    try {
-                        const json = JSON.parse(line.slice(6));
-                        const content = json.choices[0]?.delta?.content;
-                        if (content) {
-                            if (!hasStartedTyping) {
-                                aiBubble.classList.remove('thinking-state');
-                                aiBubble.innerHTML = "";
-                                hasStartedTyping = true;
-                            }
-                            fullReply += content;
-                            aiBubble.innerText = fullReply;
-                            container.scrollTop = container.scrollHeight;
-                        }
-                    } catch (e) {}
-                }
-            }
-        }
-        chatHistory.push({ role: "assistant", content: fullReply });
-    } catch (err) {
-        document.getElementById(aiBubbleId).innerHTML = "<i>Connection lost.</i>";
-    }
-}
-fetchSheetData();
 </script>
 </body>
 </html>
