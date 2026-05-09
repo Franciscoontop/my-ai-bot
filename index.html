@@ -104,7 +104,7 @@
 // ================================================================
 const CONFIG = {
   SHEET_URL:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv",
-  ZAPIER_URL: "https://hooks.zapier.com/hooks/catch/27378409/uvcaj3c/",
+  ZAPIER_URL: "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/",
   AGENT_NAME: "AI Assistant",
   API_ROUTE:  "/api/chat",
 };
@@ -273,50 +273,41 @@ The service tells the owner what the customer actually wants.
 // follow up about: "John Smith wants a fade, here's his number."
 // ================================================================
 async function fireZapier() {
-  if (leadSent) return; // Never fire twice
+  if (leadSent) return;
   leadSent = true;
 
-  const ownerEmail = SHEET_DATA["owner_email"] || "owner@yourbusiness.com";
   const bizName    = SHEET_DATA["business_name"] || "Your Business";
   const transcript = chatHistory
     .map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`)
     .join("\n");
 
+  // CHANGE THIS to your actual Gmail address so you always get notified
+  const ownerEmail = SHEET_DATA["owner_email"] || "youremail@gmail.com";
+
+  // Flat simple payload — easiest for Zapier to map
+  // In your Zap Gmail action: To={{to}} Subject={{subject}} Body={{body}}
   const payload = {
-    // ── Zapier Gmail fields ──
-    to:      ownerEmail,
-    subject: `🔥 New Lead — ${lead.name} wants ${lead.service} | ${bizName}`,
-    body: `
-You have a new qualified lead from your website.
-
-Name    : ${lead.name}
-Service : ${lead.service}
-Email   : ${lead.email}
-Phone   : ${lead.phone}
-Time    : ${new Date().toLocaleString()}
-
-Reply to this customer about: ${lead.service}
-
-──────────────────────
-Full Conversation:
-${transcript}
-    `.trim(),
-
-    // ── Raw fields (use these in Zapier filters or Google Sheets steps) ──
-    lead_name:    lead.name,
-    lead_service: lead.service,
-    lead_email:   lead.email,
-    lead_phone:   lead.phone,
-    transcript:   transcript,
+    to:         ownerEmail,
+    subject:    `New Lead: ${lead.name} - ${lead.service} - ${bizName}`,
+    body:       `NEW LEAD FROM YOUR WEBSITE\n\nName: ${lead.name}\nService: ${lead.service}\nEmail: ${lead.email}\nPhone: ${lead.phone}\nTime: ${new Date().toLocaleString()}\n\nFULL CONVERSATION:\n${transcript}`,
+    name:       lead.name,
+    service:    lead.service,
+    email:      lead.email,
+    phone:      lead.phone,
+    business:   bizName,
+    time:       new Date().toLocaleString(),
+    transcript: transcript,
   };
 
+  console.log("🔥 Firing Zapier:", payload);
+
   try {
-    await fetch(CONFIG.ZAPIER_URL, {
+    const res = await fetch(CONFIG.ZAPIER_URL, {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(payload),
     });
-    console.log("✅ Zapier lead fired:", lead);
+    console.log("✅ Zapier fired. Status:", res.status, lead);
   } catch (err) {
     console.error("❌ Zapier failed:", err);
     leadSent = false; // Allow retry if it failed
