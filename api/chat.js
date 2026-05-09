@@ -1,25 +1,21 @@
 // ================================================================
-// HOW TO SET UP (one time only):
+// SETUP (one time only — 2 minutes):
 //
-// Vercel → your project → Settings → Environment Variables:
+// 1. Go to resend.com → sign up free (100 emails/day free forever)
+// 2. Go to API Keys → Create API Key → copy it
+// 3. Vercel → your project → Settings → Environment Variables → add:
+//      RESEND_API_KEY  → your key from step 2
+//      NVIDIA_API_KEY  → already set
+// 4. Redeploy
 //
-//   NVIDIA_API_KEY  → your Nvidia key (already set)
-//   GMAIL_USER      → your Gmail address (e.g. you@gmail.com)
-//   GMAIL_PASS      → Gmail App Password (NOT your real password)
-//
-// To get Gmail App Password:
-//   myaccount.google.com → Security → 2-Step Verification (enable it)
-//   then: myaccount.google.com/apppasswords
-//   → create one → copy the 16-char password → paste into GMAIL_PASS
-//
-// After adding env vars → redeploy your Vercel project.
+// That's it. No nodemailer. No extra files. No dependencies.
 // ================================================================
 
 // ================================================================
-// CLIENT CONFIG — only change these 2 lines per client deployment
+// CLIENT CONFIG — only change these 2 lines per client
 // ================================================================
-const OWNER_EMAIL   = "Franciscoalomnte341@gmail.com "; // ← who receives lead emails
-const BUSINESS_NAME = "New lead ";          // ← shown in email subject
+const OWNER_EMAIL   = "clientowner@gmail.com"; // ← who receives lead emails
+const BUSINESS_NAME = "Your Business";          // ← shown in email subject
 
 export const config = {
   runtime:     "edge",
@@ -46,8 +42,8 @@ export default async function handler(req) {
       ? rawName[0].split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
       : null;
 
-    const foundEmail   = allText.match(emailPattern)?.[0];
-    const foundPhone   = allText.match(phonePattern)?.[0];
+    const foundEmail  = allText.match(emailPattern)?.[0];
+    const foundPhone  = allText.match(phonePattern)?.[0];
 
     const serviceKeywords = [
       "haircut","fade","beard","trim","color","blowout","nails","lashes",
@@ -60,29 +56,22 @@ export default async function handler(req) {
     const isLeadComplete = nameMatch && foundEmail && foundPhone && foundService;
     const alreadySent    = leadData?.alreadySent === true;
 
-    // ── 2. SEND EMAIL VIA /api/send-email ────────────────────────
-    // We call our own separate API route for email because nodemailer
-    // requires Node.js runtime while streaming requires edge runtime.
-    // Splitting into two routes lets each use the right runtime.
+    // ── 2. SEND EMAIL VIA RESEND ──────────────────────────────────
+    // Resend works on edge runtime — no dependencies, just a fetch call.
+    // Free plan: 100 emails/day, 3,000/month. More than enough.
     if (isLeadComplete && !alreadySent) {
       const transcript = messages
         .map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`)
         .join("\n");
 
-      // Fire and forget — don't await so AI response isn't delayed
-      fetch(`${getBaseUrl(req)}/api/send-email`, {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name:       nameMatch,
-          email:      foundEmail,
-          phone:      foundPhone,
-          service:    foundService,
-          business:   BUSINESS_NAME,
-          owner:      OWNER_EMAIL,
-          transcript: transcript,
-        }),
-      }).catch(err => console.error("Email route error:", err));
+      // Non-blocking — fire and forget so AI response isn't delayed
+      sendEmail({
+        name:       nameMatch,
+        email:      foundEmail,
+        phone:      foundPhone,
+        service:    foundService,
+        transcript: transcript,
+      }).catch(err => console.error("Email failed:", err));
     }
 
     // ── 3. SYSTEM PROMPT ─────────────────────────────────────────
@@ -100,7 +89,7 @@ RULES:
 4. Never ask for something already given.
 5. Keep replies to 2-4 complete sentences.
 6. Always end with a question or clear next step.
-7. When you have all 4, confirm and say the team will be in touch.
+7. When you have all 4, confirm and say the team will be in touch shortly.
     `.trim();
 
     // ── 4. NVIDIA / LLAMA API ────────────────────────────────────
@@ -127,8 +116,7 @@ RULES:
       return new Response("NVIDIA Error: " + err, { status: nvidiaRes.status });
     }
 
-    // ── 5. ROBUST STREAM BUFFER ───────────────────────────────────
-    // Same working buffer from before — handles Nvidia's chunked SSE
+    // ── 5. STREAM BUFFER ─────────────────────────────────────────
     const { readable, writable } = new TransformStream();
     const writer  = writable.getWriter();
     const encoder = new TextEncoder();
@@ -168,8 +156,7 @@ RULES:
             const parsed  = JSON.parse(raw);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
-              const out = { choices: [{ delta: { content } }] };
-              await writer.write(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
+              await writer.write(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`));
             }
           } catch (_) {}
         }
@@ -193,10 +180,88 @@ RULES:
   }
 }
 
-// Gets the base URL of the current Vercel deployment
-// so the email route call works in both dev and production
-function getBaseUrl(req) {
-  const host = req.headers.get("host") || "";
-  const proto = host.includes("localhost") ? "http" : "https";
-  return `${proto}://${host}`;
+
+// ================================================================
+// EMAIL SENDER — uses Resend API (free, no dependencies)
+//
+// Resend sends from "onboarding@resend.dev" by default on free plan.
+// To send from your own domain (e.g. noreply@yourdomain.com):
+//   → resend.com → Domains → add your domain → verify DNS
+//   → then change the `from` field below
+//
+// TO CHANGE WHO GETS THE EMAIL:
+// Update OWNER_EMAIL at the top of this file — that's the only
+// line you change per client deployment.
+// ================================================================
+async function sendEmail({ name, email, phone, service, transcript }) {
+  const res = await fetch("https://api.resend.com/emails", {
+    method:  "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.RESEND_API_KEY}`,
+      "Content-Type":  "application/json",
+    },
+    body: JSON.stringify({
+      from:     "Web Insider Bot <onboarding@resend.dev>",
+      to:       [OWNER_EMAIL],
+      reply_to: email,  // clicking reply goes straight to the customer
+      subject:  `New Lead: ${name} — ${service} — ${BUSINESS_NAME}`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;border:1px solid #eee;border-radius:8px;overflow:hidden;">
+
+          <div style="background:#000;padding:20px 24px;">
+            <h2 style="color:#fff;margin:0;font-size:18px;">🔥 New Lead from Your Website</h2>
+            <p style="color:#999;margin:4px 0 0;font-size:13px;">${BUSINESS_NAME}</p>
+          </div>
+
+          <div style="padding:24px;background:#fff;">
+            <table style="width:100%;border-collapse:collapse;font-size:15px;">
+              <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:10px 0;color:#999;width:90px;">Name</td>
+                <td style="padding:10px 0;font-weight:bold;">${name}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:10px 0;color:#999;">Service</td>
+                <td style="padding:10px 0;font-weight:bold;color:#cc0000;">${service}</td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:10px 0;color:#999;">Email</td>
+                <td style="padding:10px 0;">
+                  <a href="mailto:${email}" style="color:#000;">${email}</a>
+                </td>
+              </tr>
+              <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:10px 0;color:#999;">Phone</td>
+                <td style="padding:10px 0;">
+                  <a href="tel:${phone}" style="color:#000;">${phone}</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;color:#999;">Time</td>
+                <td style="padding:10px 0;">${new Date().toLocaleString()}</td>
+              </tr>
+            </table>
+
+            <div style="margin-top:20px;padding:16px;background:#f9f9f9;border-left:3px solid #000;border-radius:4px;">
+              <p style="margin:0;font-size:13px;color:#555;">
+                Hit <strong>Reply</strong> to contact <strong>${name}</strong> directly about their <strong>${service}</strong> inquiry.
+              </p>
+            </div>
+          </div>
+
+          <div style="padding:16px 24px;background:#f5f5f5;border-top:1px solid #eee;">
+            <p style="margin:0 0 8px;font-size:12px;color:#999;font-weight:bold;">FULL CONVERSATION</p>
+            <pre style="font-size:12px;color:#555;white-space:pre-wrap;margin:0;font-family:monospace;">${transcript}</pre>
+          </div>
+
+        </div>
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Resend error: ${err}`);
+  }
+
+  console.log(`✅ Lead email sent to ${OWNER_EMAIL} for ${name} (${service})`);
 }
