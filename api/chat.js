@@ -1,48 +1,39 @@
 // ================================================================
-// HOW TO SET THIS UP (one time only):
+// HOW TO SET UP (one time only):
 //
-// 1. Go to your Vercel project → Settings → Environment Variables
-//    Add these 3 variables:
+// Vercel → your project → Settings → Environment Variables:
 //
-//    GMAIL_USER     → the Gmail address sending the emails (yours)
-//    GMAIL_PASS     → a Gmail App Password (NOT your regular password)
-//    NVIDIA_API_KEY → your Nvidia API key (already have this)
+//   NVIDIA_API_KEY  → your Nvidia key (already set)
+//   GMAIL_USER      → your Gmail address (e.g. you@gmail.com)
+//   GMAIL_PASS      → Gmail App Password (NOT your real password)
 //
-// 2. To get a Gmail App Password:
-//    → Go to myaccount.google.com
-//    → Security → 2-Step Verification (turn it on if not already)
-//    → Then go to: myaccount.google.com/apppasswords
-//    → App name: "Web Insider Bot" → click Create
-//    → Copy the 16-character password → paste into GMAIL_PASS in Vercel
+// To get Gmail App Password:
+//   myaccount.google.com → Security → 2-Step Verification (enable it)
+//   then: myaccount.google.com/apppasswords
+//   → create one → copy the 16-char password → paste into GMAIL_PASS
 //
-// 3. Deploy — done. No Zapier. No monthly fee. Emails send directly.
+// After adding env vars → redeploy your Vercel project.
 // ================================================================
 
 // ================================================================
-// CLIENT CONFIG — change these per client deployment
-// Just update OWNER_EMAIL to whoever should receive the leads.
-// SENDER_EMAIL should stay as YOUR gmail (the one with app password).
+// CLIENT CONFIG — only change these 2 lines per client deployment
 // ================================================================
-const CLIENT_CONFIG = {
-  OWNER_EMAIL:  "FRanciscoalmonte341@gmail.com",   // ← WHO RECEIVES THE LEAD EMAIL
-  SENDER_EMAIL: process.env.GMAIL_USER,    // ← YOUR gmail (set in Vercel env vars)
-  BUSINESS_NAME: "The iron den",          // ← Shown in email subject line
-};
+const OWNER_EMAIL   = "clientowner@gmail.com"; // ← who receives lead emails
+const BUSINESS_NAME = "Your Business";          // ← shown in email subject
 
 export const config = {
-  runtime: "nodejs", // Must be nodejs (not edge) to use nodemailer
+  runtime:     "edge",
   maxDuration: 60,
 };
 
-import nodemailer from "nodemailer";
-
-export default async function handler(req, res) {
+export default async function handler(req) {
   if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method Not Allowed" });
+    return new Response(JSON.stringify({ error: "Method Not Allowed" }), { status: 405 });
   }
 
   try {
-    const { messages, sheetData, systemContext, leadData } = req.body;
+    const body = await req.json();
+    const { messages, sheetData, systemContext, leadData } = body;
 
     const allText  = messages.map(m => m.content).join(" ");
     const userText = messages.filter(m => m.role === "user").map(m => m.content).join(" ");
@@ -52,14 +43,12 @@ export default async function handler(req, res) {
     const phonePattern = /\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/;
     const rawName      = userText.match(/\b([a-zA-Z]{2,20})\s+([a-zA-Z]{2,20})\b/);
     const nameMatch    = rawName
-      ? [rawName[0].split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")]
+      ? rawName[0].split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ")
       : null;
 
-    const hasEmail    = emailPattern.test(allText);
-    const hasPhone    = phonePattern.test(allText);
-    const hasFullName = nameMatch !== null;
+    const foundEmail   = allText.match(emailPattern)?.[0];
+    const foundPhone   = allText.match(phonePattern)?.[0];
 
-    // Service detection
     const serviceKeywords = [
       "haircut","fade","beard","trim","color","blowout","nails","lashes",
       "wax","facial","massage","cleaning","plumbing","hvac","website",
@@ -68,26 +57,32 @@ export default async function handler(req, res) {
     ];
     const foundService = serviceKeywords.find(k => userText.toLowerCase().includes(k));
 
-    // ── 2. SEND EMAIL DIRECTLY VIA GMAIL ─────────────────────────
-    // Fires when all 4 fields are present AND the frontend hasn't
-    // already sent it (leadData.alreadySent flag from frontend)
-    const isLeadComplete = hasEmail && hasPhone && hasFullName && foundService;
+    const isLeadComplete = nameMatch && foundEmail && foundPhone && foundService;
     const alreadySent    = leadData?.alreadySent === true;
 
+    // ── 2. SEND EMAIL VIA /api/send-email ────────────────────────
+    // We call our own separate API route for email because nodemailer
+    // requires Node.js runtime while streaming requires edge runtime.
+    // Splitting into two routes lets each use the right runtime.
     if (isLeadComplete && !alreadySent) {
       const transcript = messages
         .map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`)
         .join("\n");
 
-      const name    = nameMatch?.[0]   || "Unknown";
-      const email   = allText.match(emailPattern)?.[0] || "N/A";
-      const phone   = allText.match(phonePattern)?.[0] || "N/A";
-      const service = foundService || "General Inquiry";
-
-      // Send the email — non-blocking so AI response isn't delayed
-      sendLeadEmail({ name, email, phone, service, transcript }).catch(
-        err => console.error("Email send failed:", err)
-      );
+      // Fire and forget — don't await so AI response isn't delayed
+      fetch(`${getBaseUrl(req)}/api/send-email`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name:       nameMatch,
+          email:      foundEmail,
+          phone:      foundPhone,
+          service:    foundService,
+          business:   BUSINESS_NAME,
+          owner:      OWNER_EMAIL,
+          transcript: transcript,
+        }),
+      }).catch(err => console.error("Email route error:", err));
     }
 
     // ── 3. SYSTEM PROMPT ─────────────────────────────────────────
@@ -129,122 +124,79 @@ RULES:
 
     if (!nvidiaRes.ok) {
       const err = await nvidiaRes.text();
-      return res.status(nvidiaRes.status).send("NVIDIA Error: " + err);
+      return new Response("NVIDIA Error: " + err, { status: nvidiaRes.status });
     }
 
-    // ── 5. STREAM BUFFER ─────────────────────────────────────────
-    res.setHeader("Content-Type",  "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache, no-transform");
-    res.setHeader("Connection",    "keep-alive");
-
+    // ── 5. ROBUST STREAM BUFFER ───────────────────────────────────
+    // Same working buffer from before — handles Nvidia's chunked SSE
+    const { readable, writable } = new TransformStream();
+    const writer  = writable.getWriter();
+    const encoder = new TextEncoder();
     const decoder = new TextDecoder();
-    let buffer    = "";
 
-    for await (const chunk of nvidiaRes.body) {
-      buffer += decoder.decode(chunk, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        if (!line.trim().startsWith("data: ")) continue;
-        const raw = line.trim().slice(6);
-        if (!raw || raw === "[DONE]") continue;
-        try {
-          const parsed  = JSON.parse(raw);
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) {
-            const out = { choices: [{ delta: { content } }] };
-            res.write(`data: ${JSON.stringify(out)}\n\n`);
-          }
-        } catch (_) {}
-      }
-    }
-
-    // Flush remainder
-    if (buffer.trim().startsWith("data: ")) {
+    (async () => {
+      const reader = nvidiaRes.body.getReader();
+      let buffer   = "";
       try {
-        const raw     = buffer.trim().slice(6);
-        const parsed  = JSON.parse(raw);
-        const content = parsed.choices?.[0]?.delta?.content;
-        if (content) {
-          res.write(`data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`);
-        }
-      } catch (_) {}
-    }
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
 
-    res.end();
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.trim().startsWith("data: ")) continue;
+            const raw = line.trim().slice(6);
+            if (!raw || raw === "[DONE]") continue;
+            try {
+              const parsed  = JSON.parse(raw);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                const out = { choices: [{ delta: { content } }] };
+                await writer.write(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
+              }
+            } catch (_) {}
+          }
+        }
+
+        // Flush remainder
+        if (buffer.trim().startsWith("data: ")) {
+          try {
+            const raw     = buffer.trim().slice(6);
+            const parsed  = JSON.parse(raw);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              const out = { choices: [{ delta: { content } }] };
+              await writer.write(encoder.encode(`data: ${JSON.stringify(out)}\n\n`));
+            }
+          } catch (_) {}
+        }
+
+      } finally {
+        writer.close();
+      }
+    })();
+
+    return new Response(readable, {
+      headers: {
+        "Content-Type":  "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        "Connection":    "keep-alive",
+      },
+    });
 
   } catch (err) {
     console.error("Handler error:", err);
-    res.status(500).json({ error: err.message });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 });
   }
 }
 
-
-// ================================================================
-// EMAIL SENDER — uses Gmail SMTP directly via nodemailer
-// No Zapier. No third-party service. Just your Gmail account.
-//
-// TO CHANGE WHO GETS THE EMAIL:
-// Update CLIENT_CONFIG.OWNER_EMAIL at the top of this file.
-// That's the only line you change per client.
-// ================================================================
-async function sendLeadEmail({ name, email, phone, service, transcript }) {
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.GMAIL_USER, // Your Gmail (set in Vercel env vars)
-      pass: process.env.GMAIL_PASS, // Your Gmail App Password (not regular password)
-    },
-  });
-
-  const mailOptions = {
-    from:    `"Web Insider Bot" <${process.env.GMAIL_USER}>`,
-    to:      CLIENT_CONFIG.OWNER_EMAIL,   // ← owner receives this
-    replyTo: email,                        // ← reply goes straight to the customer
-    subject: `New Lead: ${name} wants ${service} — ${CLIENT_CONFIG.BUSINESS_NAME}`,
-    text: `
-NEW LEAD FROM YOUR WEBSITE
-==========================
-
-Name    : ${name}
-Service : ${service}
-Email   : ${email}
-Phone   : ${phone}
-Time    : ${new Date().toLocaleString()}
-
-Hit reply to contact this customer directly about: ${service}
-
-━━━ Full Conversation ━━━
-${transcript}
-    `.trim(),
-
-    // HTML version — looks clean in Gmail
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;">
-        <div style="background:#000;padding:20px;border-radius:8px 8px 0 0;">
-          <h2 style="color:#fff;margin:0;font-size:20px;">🔥 New Lead from Your Website</h2>
-        </div>
-        <div style="background:#f9f9f9;padding:24px;border:1px solid #eee;">
-          <table style="width:100%;border-collapse:collapse;">
-            <tr><td style="padding:8px 0;color:#666;width:100px;">Name</td><td style="padding:8px 0;font-weight:bold;">${name}</td></tr>
-            <tr><td style="padding:8px 0;color:#666;">Service</td><td style="padding:8px 0;font-weight:bold;color:#e00;">${service}</td></tr>
-            <tr><td style="padding:8px 0;color:#666;">Email</td><td style="padding:8px 0;"><a href="mailto:${email}" style="color:#000;">${email}</a></td></tr>
-            <tr><td style="padding:8px 0;color:#666;">Phone</td><td style="padding:8px 0;"><a href="tel:${phone}" style="color:#000;">${phone}</a></td></tr>
-            <tr><td style="padding:8px 0;color:#666;">Time</td><td style="padding:8px 0;">${new Date().toLocaleString()}</td></tr>
-          </table>
-          <div style="margin-top:20px;padding:16px;background:#fff;border-left:4px solid #000;border-radius:4px;">
-            <p style="margin:0;color:#666;font-size:13px;">Hit reply to contact this customer directly about: <strong>${service}</strong></p>
-          </div>
-        </div>
-        <div style="background:#f0f0f0;padding:16px;border-radius:0 0 8px 8px;">
-          <p style="margin:0;font-size:12px;color:#999;">Full conversation transcript:</p>
-          <pre style="font-size:12px;color:#555;white-space:pre-wrap;margin:8px 0 0;">${transcript}</pre>
-        </div>
-      </div>
-    `,
-  };
-
-  await transporter.sendMail(mailOptions);
-  console.log(`✅ Lead email sent to ${CLIENT_CONFIG.OWNER_EMAIL} for ${name}`);
+// Gets the base URL of the current Vercel deployment
+// so the email route call works in both dev and production
+function getBaseUrl(req) {
+  const host = req.headers.get("host") || "";
+  const proto = host.includes("localhost") ? "http" : "https";
+  return `${proto}://${host}`;
 }
