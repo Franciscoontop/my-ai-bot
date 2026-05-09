@@ -24,9 +24,9 @@
 // SENDER_EMAIL should stay as YOUR gmail (the one with app password).
 // ================================================================
 const CLIENT_CONFIG = {
-  OWNER_EMAIL:  "clientowner@gmail.com",   // ← WHO RECEIVES THE LEAD EMAIL
+  OWNER_EMAIL:  "FRanciscoalmonte341@gmail.com",   // ← WHO RECEIVES THE LEAD EMAIL
   SENDER_EMAIL: process.env.GMAIL_USER,    // ← YOUR gmail (set in Vercel env vars)
-  BUSINESS_NAME: "Your Business",          // ← Shown in email subject line
+  BUSINESS_NAME: "The iron den",          // ← Shown in email subject line
 };
 
 export const config = {
