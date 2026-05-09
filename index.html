@@ -262,44 +262,44 @@ async function fireZapier() {
   if (leadSent) return;
   leadSent = true;
 
-  const bizName    = SHEET_DATA["business_name"] || "Your Business";
   const transcript = chatHistory
     .map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`)
     .join("\n");
 
-  // CHANGE THIS to your actual Gmail address so you always get notified
-  const ownerEmail = SHEET_DATA["owner_email"] || "youremail@gmail.com";
+  console.log("🔥 Firing email for:", lead);
 
-  // Flat simple payload — easiest for Zapier to map
-  // In your Zap Gmail action: To={{to}} Subject={{subject}} Body={{body}}
-  const payload = {
-    to:         ownerEmail,
-    subject:    `New Lead: ${lead.name} - ${lead.service} - ${bizName}`,
-    body:       `NEW LEAD FROM YOUR WEBSITE\n\nName: ${lead.name}\nService: ${lead.service}\nEmail: ${lead.email}\nPhone: ${lead.phone}\nTime: ${new Date().toLocaleString()}\n\nFULL CONVERSATION:\n${transcript}`,
-    name:       lead.name,
-    service:    lead.service,
-    email:      lead.email,
-    phone:      lead.phone,
-    business:   bizName,
-    time:       new Date().toLocaleString(),
-    transcript: transcript,
-  };
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer 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",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from:     "Web Insider Bot <onboarding@resend.dev>",
+      to:       ["Franciscoalmonte341@gmail.com"],
+      reply_to: lead.email,
+      subject:  `New Lead: ${lead.name} - ${lead.service}`,
+      html: `
+        <h2>New Lead from Your Website</h2>
+        <p><strong>Name:</strong> ${lead.name}</p>
+        <p><strong>Service:</strong> ${lead.service}</p>
+        <p><strong>Email:</strong> ${lead.email}</p>
+        <p><strong>Phone:</strong> ${lead.phone}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+        <hr/>
+        <pre>${transcript}</pre>
+      `,
+    }),
+  });
 
-  console.log("🔥 Firing Zapier:", payload);
-
-  try {
-    const res = await fetch(CONFIG.ZAPIER_URL, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify(payload),
-    });
-    console.log("✅ Zapier fired. Status:", res.status, lead);
-  } catch (err) {
-    console.error("❌ Zapier failed:", err);
-    leadSent = false; // Allow retry if it failed
+  if (res.ok) {
+    console.log("✅ Email sent successfully");
+  } else {
+    const err = await res.text();
+    console.error("❌ Email failed:", err);
+    leadSent = false;
   }
 }
-
 
 // ================================================================
 // ⑥ SEND MESSAGE — Main function called on every user message
