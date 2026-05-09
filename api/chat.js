@@ -18,8 +18,8 @@
 // ================================================================
 // CLIENT CONFIG — only change these 2 lines per client deployment
 // ================================================================
-const OWNER_EMAIL   = "clientowner@gmail.com"; // ← who receives lead emails
-const BUSINESS_NAME = "Your Business";          // ← shown in email subject
+const OWNER_EMAIL   = "Franciscoalomnte341@gmail.com "; // ← who receives lead emails
+const BUSINESS_NAME = "New lead ";          // ← shown in email subject
 
 export const config = {
   runtime:     "edge",
