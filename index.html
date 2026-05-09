@@ -85,26 +85,12 @@
 <script>
 
 // ================================================================
-// ① CONFIG — Change these 4 values for each new client
-//
-// SHEET_URL     : Google Sheet → File → Share → Publish to web
-//                 → select "CSV" → click Publish → copy the link
-//                 Test it: paste the URL in your browser — you should
-//                 see plain text like: business_name,Mario's Barbershop
-//
-// ZAPIER_URL    : Your Zapier webhook. One Zap handles everything:
-//                 Trigger: Webhooks by Zapier → Catch Hook
-//                 Action:  Gmail → Send Email
-//                 Map: to=owner_email, subject=subject, body=body
-//
-// AGENT_NAME    : Name shown in the chat header
-//
-// API_ROUTE     : Your Vercel backend file (don't change unless you
-//                 renamed the file)
+// CONFIG — Change these per client
+// Email destination is now set in chat.js (CLIENT_CONFIG.OWNER_EMAIL)
+// No Zapier needed anymore — emails send directly via Gmail
 // ================================================================
 const CONFIG = {
   SHEET_URL:  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv",
-  ZAPIER_URL: "https://hooks.zapier.com/hooks/catch/27378409/uvukyhr/",
   AGENT_NAME: "AI Assistant",
   API_ROUTE:  "/api/chat",
 };
@@ -412,6 +398,7 @@ YOUR JOB:
         sheetData:     SHEET_STRING,
         systemContext: systemContext,
         messages:      chatHistory.map(m => ({ role: m.role, content: m.content })),
+        leadData:      { ...lead, alreadySent: leadSent }, // tells backend what frontend already knows
       }),
     });
 
