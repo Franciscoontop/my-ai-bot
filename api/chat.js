@@ -16,7 +16,7 @@
 //
 // (Email notifications removed — leads save to Google Sheets instead)
 // ================================================================
-const BUSINESS_NAME = "Your Business"; // ← change per client
+const BUSINESS_NAME = "The Iron den"; // ← change per client
 
 export const config = {
   runtime:     "edge",
