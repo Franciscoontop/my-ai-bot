@@ -172,8 +172,9 @@ function extractLeadData(text) {
   const phoneMatch = text.match(/\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/);
   if (phoneMatch) lead.phone = phoneMatch[0];
 
-  // Name — any case, auto-capitalized
-  if (!lead.name) {
+  // Name — only extract if message is SHORT (under 60 chars)
+  // This prevents the AI's long responses from overwriting the name
+  if (!lead.name && text.length < 60) {
     const nameMatch = text.match(/\b([a-zA-Z]{2,20})\s+([a-zA-Z]{2,20})\b/);
     if (nameMatch) {
       lead.name = nameMatch[0]
@@ -183,41 +184,24 @@ function extractLeadData(text) {
     }
   }
 
-  // Service — match against sheet services first
+  // Service
   if (!lead.service && SHEET_DATA["services"]) {
     const services = SHEET_DATA["services"].split("|").map(s => s.trim().toLowerCase());
     const lower    = text.toLowerCase();
     const matched  = services.find(s => lower.includes(s.split(" ")[0]));
     if (matched) lead.service = matched;
   }
-
-  // Service fallback — common keywords
   if (!lead.service) {
     const keywords = ["haircut","fade","beard","cut","trim","color","blowout","booking",
                       "appointment","massage","nails","lashes","wax","facial","cleaning",
                       "plumbing","hvac","design","website","consult","repair","install"];
-    const lower = text.toLowerCase();
-    const found = keywords.find(w => lower.includes(w));
+    const found = keywords.find(w => text.toLowerCase().includes(w));
     if (found) lead.service = found;
   }
-}
 
-function isLeadComplete() {
-  return !!(lead.name && lead.email && lead.phone && lead.service);
+  // Debug log so you can see what's being captured in real time
+  console.log("📋 Lead so far:", JSON.stringify(lead));
 }
-
-function leadStatus() {
-  return `
-LEAD STATUS — check before every reply. Never ask for info already collected:
-- Name    : ${lead.name    || "MISSING — ask their name first"}
-- Service : ${lead.service || "MISSING — ask what service they need"}
-- Email   : ${lead.email   || "MISSING — ask after you know the service"}
-- Phone   : ${lead.phone   || "MISSING — ask last"}
-- COMPLETE: ${isLeadComplete() ? "YES — thank them and say team will reach out" : "NO — keep collecting, one at a time"}
-COLLECTION ORDER: Name → Service → Email → Phone
-`.trim();
-}
-
 
 // ================================================================
 // ⑤ SAVE LEAD TO GOOGLE SHEET
