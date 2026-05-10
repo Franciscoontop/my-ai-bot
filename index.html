@@ -4,44 +4,179 @@
   <title>AI Business Assistant</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
+    /* ── BASE ── */
     body { background-color: #000; color: #fff; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; min-height: 100vh; }
+
+    /* ── WRAPPER ── */
     #ai-widget-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2147483647 !important; }
-    #exit-modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -45%) scale(0.95); width: 90%; max-width: 400px; background: #111; border: 1px solid #333; border-radius: 24px; padding: 40px; text-align: center; box-shadow: 0px 30px 60px rgba(0,0,0,0.9); pointer-events: none; z-index: 2147483648; opacity: 0; visibility: hidden; transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.5s; }
+
+    /* ── EXIT MODAL ── */
+    #exit-modal {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -45%) scale(0.95);
+      width: 90%; max-width: 400px;
+      background: #111; border: 1px solid #333; border-radius: 24px;
+      padding: 40px; text-align: center;
+      box-shadow: 0px 30px 60px rgba(0,0,0,0.9);
+      pointer-events: none; z-index: 2147483648;
+      opacity: 0; visibility: hidden;
+      transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.165, 0.84, 0.44, 1), visibility 0.5s;
+    }
     #exit-modal.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
-    .modal-offer { font-size: 26px; font-weight: bold; margin-bottom: 12px; color: #fff; }
-    .modal-text { font-size: 16px; margin-bottom: 24px; color: #aaa; }
-    .promo-code { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; color: #fff; }
-    .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; }
-    #chat-bubble { position: absolute; bottom: 25px; right: 25px; width: 60px; height: 60px; background: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; box-shadow: 0 0 15px rgba(255,255,255,0.3); z-index: 2147483649; transition: bottom 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), right 0.8s cubic-bezier(0.34, 1.56, 0.64, 1), width 0.5s ease, height 0.5s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease; }
-    #chat-bubble.active-spiral { bottom: 597px; right: 343px; width: 26px; height: 26px; transform: rotate(720deg); box-shadow: none; }
+    .modal-offer  { font-size: 26px; font-weight: bold; margin-bottom: 12px; color: #fff; }
+    .modal-text   { font-size: 16px; margin-bottom: 24px; color: #aaa; }
+    .promo-code   { background: #1a1a1a; border: 1px dashed #444; padding: 12px 24px; font-size: 22px; font-weight: bold; border-radius: 12px; margin-bottom: 24px; color: #fff; }
+    .close-modal-btn { background: #fff; color: #000; border: none; padding: 14px 30px; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 15px; }
+
+    /* ── CHAT BUBBLE ── */
+    #chat-bubble {
+      position: absolute; bottom: 20px; right: 20px;
+      width: 60px; height: 60px;
+      background: #fff; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; pointer-events: auto;
+      box-shadow: 0 0 15px rgba(255,255,255,0.3);
+      z-index: 2147483649;
+      transition: bottom 0.8s cubic-bezier(0.34,1.56,0.64,1),
+                  right 0.8s cubic-bezier(0.34,1.56,0.64,1),
+                  width 0.5s ease, height 0.5s ease,
+                  transform 0.8s cubic-bezier(0.22,1,0.36,1),
+                  box-shadow 0.3s ease;
+    }
     #chat-bubble svg { transition: all 0.6s ease; }
+
+    /* Desktop spiral animation */
+    #chat-bubble.active-spiral {
+      bottom: 607px; right: 353px;
+      width: 26px; height: 26px;
+      transform: rotate(720deg); box-shadow: none;
+    }
     #chat-bubble.active-spiral svg { width: 14px; height: 14px; fill: #000; }
-    #chat-window { position: absolute; bottom: 95px; right: 25px; width: 360px; height: 550px; max-height: 85svh; background: #111; border: 1px solid #333; border-radius: 20px; display: none; flex-direction: column; box-shadow: 0px 15px 50px rgba(0,0,0,0.9); pointer-events: auto; overflow: hidden; opacity: 0; transition: opacity 0.5s ease; }
+
+    /* ── CHAT WINDOW — Desktop ── */
+    #chat-window {
+      position: absolute; bottom: 90px; right: 20px;
+      width: 370px; height: 560px; max-height: 85svh;
+      background: #111; border: 1px solid #333; border-radius: 20px;
+      display: none; flex-direction: column;
+      box-shadow: 0px 15px 50px rgba(0,0,0,0.9);
+      pointer-events: auto; overflow: hidden;
+      opacity: 0; transition: opacity 0.4s ease;
+    }
     #chat-window.open { display: flex; opacity: 1; }
-    #chat-header { background: #1a1a1a; padding: 15px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+
+    /* ── CHAT HEADER ── */
+    #chat-header { background: #1a1a1a; padding: 14px 16px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
     .header-title { display: flex; align-items: center; gap: 10px; }
-    .icon-dock { width: 26px; height: 26px; border-radius: 50%; background: #fff; }
-    .header-text b { display: block; font-size: 14px; color: #fff; }
+    .icon-dock    { width: 26px; height: 26px; border-radius: 50%; background: #fff; flex-shrink: 0; }
+    .header-text b    { display: block; font-size: 14px; color: #fff; }
     .header-text span { font-size: 11px; color: #00ff88; }
-    #response-container { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background: #050505; scroll-behavior: smooth; }
-    .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 90%; }
-    .ai-row { align-self: flex-start; }
-    .user-row { align-self: flex-end; flex-direction: row-reverse; }
-    .avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .ai-avatar { background: #fff; }
+
+    /* ── MESSAGES ── */
+    #response-container {
+      flex: 1; padding: 14px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 10px;
+      background: #050505; scroll-behavior: smooth;
+      -webkit-overflow-scrolling: touch;
+    }
+    .message-row { display: flex; align-items: flex-end; gap: 8px; max-width: 88%; }
+    .ai-row      { align-self: flex-start; }
+    .user-row    { align-self: flex-end; flex-direction: row-reverse; }
+    .avatar      { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ai-avatar   { background: #fff; }
     .user-avatar { background: #333; font-size: 10px; color: #aaa; border: 1px solid #444; }
-    .msg-bubble { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; }
-    .ai-msg { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
-    .user-msg { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+    .msg-bubble  { padding: 10px 14px; border-radius: 15px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; max-width: 100%; }
+    .ai-msg      { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
+    .user-msg    { background: #fff; color: #000; border-bottom-right-radius: 4px; }
+
+    /* ── TYPING DOTS ── */
     .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
     .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
     .dot { width: 4px; height: 4px; background: #888; border-radius: 50%; animation: bounce 1.4s infinite ease-in-out; }
     .dot:nth-child(2) { animation-delay: 0.2s; }
     .dot:nth-child(3) { animation-delay: 0.4s; }
-    @keyframes bounce { 0%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
-    .input-area { padding: 15px; background: #111; border-top: 1px solid #333; display: flex; gap: 8px; }
-    .input-area input { flex: 1; padding: 10px; background: #1a1a1a; border: 1px solid #444; color: #fff; border-radius: 10px; outline: none; }
-    .send-btn { padding: 10px 15px; background: #fff; color: #000; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    @keyframes bounce { 0%,80%,100% { transform: translateY(0); } 40% { transform: translateY(-5px); } }
+
+    /* ── INPUT BAR ── */
+    .input-area {
+      padding: 12px 14px; background: #111;
+      border-top: 1px solid #333; display: flex; gap: 8px;
+      flex-shrink: 0; align-items: center;
+    }
+    .input-area input {
+      flex: 1; padding: 10px 14px; background: #1a1a1a;
+      border: 1px solid #444; color: #fff; border-radius: 22px;
+      outline: none; font-size: 14px;
+      /* Prevent iOS zoom on focus */
+      font-size: max(16px, 14px);
+    }
+    .send-btn {
+      padding: 10px 16px; background: #fff; color: #000;
+      border: none; border-radius: 22px;
+      cursor: pointer; font-weight: bold; font-size: 13px;
+      flex-shrink: 0; white-space: nowrap;
+    }
+
+    /* ══════════════════════════════════════════
+       MOBILE STYLES — screens under 480px
+       Chat window becomes full-screen overlay
+       so it's easy to use on any phone
+    ══════════════════════════════════════════ */
+    @media (max-width: 480px) {
+
+      /* Bubble stays bottom-right but slightly smaller */
+      #chat-bubble {
+        bottom: 16px; right: 16px;
+        width: 54px; height: 54px;
+      }
+
+      /* Full screen chat on mobile */
+      #chat-window {
+        position: fixed;
+        bottom: 0; right: 0; left: 0; top: 0;
+        width: 100%; height: 100%;
+        max-height: 100%;
+        border-radius: 0;
+        border: none;
+      }
+
+      /* Bubble hides when chat is open on mobile */
+      #chat-bubble.active-spiral {
+        opacity: 0;
+        pointer-events: none;
+        width: 54px; height: 54px;
+        bottom: 16px; right: 16px;
+        transform: none;
+      }
+
+      /* Slightly larger text for readability */
+      .msg-bubble { font-size: 15px; }
+
+      /* Bigger input area for thumbs */
+      .input-area { padding: 12px 16px 20px; }
+      .input-area input { padding: 12px 16px; }
+      .send-btn { padding: 12px 18px; }
+
+      /* Full width messages on mobile */
+      .message-row { max-width: 92%; }
+
+      /* Exit modal fits small screens */
+      #exit-modal { padding: 28px 20px; }
+      .modal-offer { font-size: 22px; }
+    }
+
+    /* Mid-range tablets 481px–768px */
+    @media (min-width: 481px) and (max-width: 768px) {
+      #chat-window {
+        width: calc(100vw - 32px);
+        right: 16px;
+        bottom: 84px;
+      }
+      #chat-bubble.active-spiral {
+        bottom: calc(84px + 560px - 26px - 10px);
+        right: calc(16px + 370px/2 - 13px);
+      }
+    }
   </style>
 </head>
 <body>
@@ -437,13 +572,28 @@ function setGreeting(text) {
 function toggleChat() {
   const win    = document.getElementById("chat-window");
   const bubble = document.getElementById("chat-bubble");
+  const mobile = window.innerWidth <= 480;
+
   if (win.classList.contains("open")) {
     win.classList.remove("open");
     bubble.classList.remove("active-spiral");
+    // On mobile restore bubble visibility
+    if (mobile) {
+      bubble.style.opacity = "1";
+      bubble.style.pointerEvents = "auto";
+    }
     setTimeout(() => { win.style.display = "none"; }, 400);
   } else {
     win.style.display = "flex";
-    setTimeout(() => { win.classList.add("open"); bubble.classList.add("active-spiral"); }, 10);
+    setTimeout(() => {
+      win.classList.add("open");
+      bubble.classList.add("active-spiral");
+      // On mobile just hide the bubble — full screen chat takes over
+      if (mobile) {
+        bubble.style.opacity = "0";
+        bubble.style.pointerEvents = "none";
+      }
+    }, 10);
   }
 }
 
