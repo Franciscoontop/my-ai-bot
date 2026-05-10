@@ -1,4 +1,3 @@
- ================================================================
 // SETUP (one time only — 2 minutes):
 //
 // 1. Go to resend.com → sign up free (100 emails/day free forever)
