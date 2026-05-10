@@ -47,7 +47,6 @@
 <body>
 
 <div id="ai-widget-wrapper">
-
   <div id="exit-modal">
     <div class="modal-offer">Don't Leave Yet! 🚀</div>
     <div class="modal-text">Get a free demo before you go.</div>
@@ -57,7 +56,7 @@
   </div>
 
   <div id="chat-bubble" onclick="toggleChat()">
-    <svg id="bubble-svg" style="width:30px;height:30px;fill:#000" viewBox="0 0 24 24">
+    <svg style="width:30px;height:30px;fill:#000" viewBox="0 0 24 24">
       <path d="M19,9L17.75,11.75L15,13L17.75,14.25L19,17L20.25,14.25L23,13L20.25,11.75L19,9M9,5L7,11L1,13L7,15L9,21L11,15L17,13L11,11L9,5M19,1L18.25,2.75L16.5,3.5L18.25,4.25L19,6L19.75,4.25L21.5,3.5L19.75,2.75L19,1Z"/>
     </svg>
   </div>
@@ -79,26 +78,21 @@
       <button class="send-btn" onclick="send()">Send</button>
     </div>
   </div>
-
 </div>
 
 <script>
-
 // ================================================================
-// ① CONFIG — Change these 3 values per client
-//
-// RESEND_API_KEY : Get from resend.com → API Keys (free account)
-// OWNER_EMAIL    : Who receives the lead notification email
-// SHEET_URL      : Client's published Google Sheet CSV link
+// ① CONFIG — only change these per client
+// SHEET_URL      : client's published Google Sheet CSV
+// LEADS_SHEET_URL: Google Apps Script web app URL for saving leads
+// AGENT_NAME     : name shown in chat header
 // ================================================================
 const CONFIG = {
-  // ── Change these per client ──
   SHEET_URL:       "https://docs.google.com/spreadsheets/d/e/2PACX-1vQVsTHX1E0Jd-f2oVoNH8N2YXdzgPZcn6iwmHE7GM8-nvMkZxZ93KEtN0jyCd4iqu1NjvBvmcOx9eu7/pub?output=csv",
   LEADS_SHEET_URL: "https://script.google.com/macros/s/AKfycbxkL0zRydZGIdZI1ReQL2_MepFY5SofQgK2A8_FMogMd3_NivQ_HBnPi02l2fLPeyiv/exec",
   AGENT_NAME:      "AI Assistant",
   API_ROUTE:       "/api/chat",
 };
-
 
 // ================================================================
 // ② STATE
@@ -116,15 +110,8 @@ let lead = {
   service: null,
 };
 
-
 // ================================================================
-// ③ GOOGLE SHEET LOADER
-// Sheet rows should look like:
-//   business_name, Mario's Barbershop
-//   services,      Haircuts $30 | Fades $35
-//   hours,         Mon-Sat 9am-7pm
-//   promos,        FIRST10
-//   agent_name,    Mario's AI
+// ③ SHEET LOADER
 // ================================================================
 async function loadSheet() {
   try {
@@ -138,19 +125,16 @@ async function loadSheet() {
       }
     });
 
-    SHEET_STRING = Object.entries(SHEET_DATA)
-      .map(([k, v]) => `${k}: ${v}`)
-      .join(" | ");
+    SHEET_STRING = Object.entries(SHEET_DATA).map(([k,v]) => `${k}: ${v}`).join(" | ");
 
     if (SHEET_DATA["promos"]) {
       document.getElementById("modal-promo").innerText = SHEET_DATA["promos"];
     }
 
-    const agentName = SHEET_DATA["agent_name"] || CONFIG.AGENT_NAME;
-    document.getElementById("header-agent-name").innerText = agentName;
+    document.getElementById("header-agent-name").innerText = SHEET_DATA["agent_name"] || CONFIG.AGENT_NAME;
 
     const bizName = SHEET_DATA["business_name"] || "us";
-    setGreeting(`Hey! 👋 Welcome to ${bizName}. I'm here to help you find the right service and answer any questions. What's your name?`);
+    setGreeting(`Hey! 👋 Welcome to ${bizName}. I'm here to help you find the right service. What's your name?`);
 
   } catch (err) {
     console.warn("Sheet load failed:", err);
@@ -158,66 +142,97 @@ async function loadSheet() {
   }
 }
 
-
 // ================================================================
-// ④ LEAD DATA EXTRACTOR
-// Silently scans every message for name, email, phone, service.
+// ④ LEAD EXTRACTION
+// Only scans USER messages — never AI responses.
+// Short message check prevents AI text from being parsed as a name.
 // ================================================================
 function extractLeadData(text) {
+  const lower = text.toLowerCase().trim();
+
   // Email
   const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
-  if (emailMatch) lead.email = emailMatch[0];
+  if (emailMatch) {
+    lead.email = emailMatch[0];
+    console.log("📧 Email captured:", lead.email);
+  }
 
-  // Phone
+  // Phone — any common format
   const phoneMatch = text.match(/\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}/);
-  if (phoneMatch) lead.phone = phoneMatch[0];
+  if (phoneMatch) {
+    lead.phone = phoneMatch[0];
+    console.log("📞 Phone captured:", lead.phone);
+  }
 
-  // Name — only extract if message is SHORT (under 60 chars)
-  // This prevents the AI's long responses from overwriting the name
-  if (!lead.name && text.length < 60) {
-    const nameMatch = text.match(/\b([a-zA-Z]{2,20})\s+([a-zA-Z]{2,20})\b/);
+  // Name — only from short messages (under 55 chars) so AI responses don't pollute it
+  if (!lead.name && text.trim().length < 55) {
+    const nameMatch = text.trim().match(/^(?:(?:hi|hey|hello|my name is|i am|i'm|name is|it's|its)\s+)?([a-zA-Z]{2,20})\s+([a-zA-Z]{2,20})$/i);
     if (nameMatch) {
-      lead.name = nameMatch[0]
-        .split(" ")
-        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-        .join(" ");
+      const first = nameMatch[nameMatch.length - 2];
+      const last  = nameMatch[nameMatch.length - 1];
+      lead.name = [first, last].map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+      console.log("👤 Name captured:", lead.name);
     }
   }
 
-  // Service
-  if (!lead.service && SHEET_DATA["services"]) {
-    const services = SHEET_DATA["services"].split("|").map(s => s.trim().toLowerCase());
-    const lower    = text.toLowerCase();
-    const matched  = services.find(s => lower.includes(s.split(" ")[0]));
-    if (matched) lead.service = matched;
-  }
+  // Service — match sheet services first, then fallback keywords
   if (!lead.service) {
-    const keywords = ["haircut","fade","beard","cut","trim","color","blowout","booking",
-                      "appointment","massage","nails","lashes","wax","facial","cleaning",
-                      "plumbing","hvac","design","website","consult","repair","install"];
-    const found = keywords.find(w => text.toLowerCase().includes(w));
-    if (found) lead.service = found;
+    if (SHEET_DATA["services"]) {
+      const services = SHEET_DATA["services"].split("|").map(s => s.trim().toLowerCase());
+      const matched  = services.find(s => lower.includes(s.split(" ")[0]));
+      if (matched) {
+        lead.service = matched;
+        console.log("🛠 Service captured from sheet:", lead.service);
+      }
+    }
+    if (!lead.service) {
+      const keywords = ["haircut","fade","beard","cut","trim","color","blowout","booking",
+                        "appointment","massage","nails","lashes","wax","facial","cleaning",
+                        "plumbing","hvac","design","website","consult","repair","install",
+                        "coaching","training","landscaping","detailing","painting","electrical"];
+      const found = keywords.find(w => lower.includes(w));
+      if (found) {
+        lead.service = found;
+        console.log("🛠 Service captured from keywords:", lead.service);
+      }
+    }
   }
 
-  // Debug log so you can see what's being captured in real time
-  console.log("📋 Lead so far:", JSON.stringify(lead));
+  console.log("📋 Lead status:", JSON.stringify(lead));
 }
 
 // ================================================================
-// ⑤ SAVE LEAD TO GOOGLE SHEET
-//
-// Calls your Google Apps Script web app URL which appends a new
-// row to your Google Sheet with all lead info + timestamp.
-//
-// No Zapier. No Resend. No email setup. Just works.
-//
-// TO USE FOR A NEW CLIENT:
-// 1. Open their Google Sheet → Extensions → Apps Script
-// 2. Paste the doPost function (from setup instructions)
-// 3. Deploy as web app → copy the URL
-// 4. Update CONFIG.LEADS_SHEET_URL at the top of this file
+// ⑤ LEAD COMPLETE CHECK
+// All 4 fields must be present before saving to sheet.
 // ================================================================
-async function sendLeadEmail() {
+function isLeadComplete() {
+  return !!(lead.name && lead.email && lead.phone && lead.service);
+}
+
+// ================================================================
+// ⑥ LEAD STATUS — injected into AI prompt every message
+// Tells the AI exactly what it has and what to collect next.
+// ================================================================
+function leadStatus() {
+  return `
+CURRENT LEAD STATUS (check before every reply):
+- Name    : ${lead.name    || "MISSING — ask their name first"}
+- Service : ${lead.service || "MISSING — ask what service they need"}
+- Email   : ${lead.email   || "MISSING — ask after service is known"}
+- Phone   : ${lead.phone   || "MISSING — ask last"}
+- Complete: ${isLeadComplete() ? "YES — thank them and say team will be in touch" : "NO — collect what is missing, one at a time"}
+
+COLLECTION ORDER: Name → Service → Email → Phone
+Never ask for something already collected above.
+`.trim();
+}
+
+// ================================================================
+// ⑦ SAVE LEAD TO GOOGLE SHEET
+// Fires once when all 4 fields are collected.
+// Uses no-cors because Google Apps Script requires it from browser.
+// ================================================================
+async function saveLeadToSheet() {
   if (leadSent) return;
   leadSent = true;
 
@@ -225,8 +240,6 @@ async function sendLeadEmail() {
   const transcript = chatHistory
     .map(m => `${m.role === "user" ? "Customer" : "AI"}: ${m.content}`)
     .join("\n");
-
-  console.log("🔥 Saving lead to Google Sheet:", lead);
 
   const payload = {
     name:       lead.name,
@@ -237,27 +250,24 @@ async function sendLeadEmail() {
     transcript: transcript,
   };
 
+  console.log("🔥 Saving lead to Google Sheet:", payload);
+
   try {
-    // Google Apps Script requires no-cors mode from browser
     await fetch(CONFIG.LEADS_SHEET_URL, {
       method:  "POST",
       mode:    "no-cors",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(payload),
     });
-
-    // no-cors means we can not read the response — but if no error thrown it worked
     console.log("✅ Lead saved to Google Sheet for", lead.name);
-
   } catch (err) {
     console.error("❌ Sheet save failed:", err);
-    leadSent = false; // allow retry
+    leadSent = false;
   }
 }
 
-
 // ================================================================
-// ⑥ SEND MESSAGE
+// ⑧ SEND MESSAGE
 // ================================================================
 async function send(overrideMsg = null) {
   const input     = document.getElementById("msg");
@@ -265,6 +275,7 @@ async function send(overrideMsg = null) {
   const userText  = overrideMsg || input.value.trim();
   if (!userText) return;
 
+  // Render user bubble
   container.innerHTML +=
     `<div class="message-row user-row">
        <div class="avatar user-avatar">U</div>
@@ -273,9 +284,11 @@ async function send(overrideMsg = null) {
 
   if (!overrideMsg) input.value = "";
 
+  // Extract lead data from THIS user message only
   extractLeadData(userText);
   chatHistory.push({ role: "user", content: userText });
 
+  // Show typing indicator
   const bubbleId = "ai-" + Date.now();
   container.innerHTML +=
     `<div class="message-row ai-row">
@@ -295,15 +308,15 @@ async function send(overrideMsg = null) {
   const reply = await streamResponse(bubbleId);
   chatHistory.push({ role: "assistant", content: reply });
 
-  // Fire email after AI responds — runs in background
+  // Check after AI responds — fire sheet save if complete
   if (isLeadComplete() && !leadSent) {
-    sendLeadEmail();
+    console.log("🎯 Lead complete — firing sheet save:", JSON.stringify(lead));
+    saveLeadToSheet();
   }
 }
 
-
 // ================================================================
-// ⑦ AI STREAM
+// ⑨ AI STREAM
 // ================================================================
 async function streamResponse(bubbleId) {
   const bubble    = document.getElementById(bubbleId);
@@ -321,10 +334,10 @@ ${leadStatus()}
 
 YOUR JOB:
 1. Collection order: Name → Service → Email → Phone
-2. Get name first, then service, then email, then phone.
+2. Get name first, then service, then email, then phone — one at a time.
 3. Keep replies to 2-3 sentences. Always end with a question.
-4. When lead is complete: say "Perfect! The team will reach out to you shortly about [service]."
-5. Never make up services — only discuss what is in the business info.
+4. When lead is complete say: "Perfect! The team will reach out to you shortly about [service]."
+5. Never make up services — only discuss what is in the business info above.
 `.trim();
 
   let fullReply        = "";
@@ -348,11 +361,9 @@ YOUR JOB:
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
-
       for (const line of lines) {
         if (!line.trim().startsWith("data: ")) continue;
         const raw = line.trim().slice(6);
@@ -390,9 +401,8 @@ YOUR JOB:
   return fullReply;
 }
 
-
 // ================================================================
-// ⑧ UI HELPERS
+// ⑩ UI HELPERS
 // ================================================================
 function setGreeting(text) {
   document.getElementById("response-container").innerHTML =
@@ -419,9 +429,7 @@ function toggleChat() {
   }
 }
 
-function closeModal() {
-  document.getElementById("exit-modal").classList.remove("active");
-}
+function closeModal() { document.getElementById("exit-modal").classList.remove("active"); }
 
 function claimOffer() {
   const promo = document.getElementById("modal-promo").innerText;
@@ -437,12 +445,10 @@ document.addEventListener("mousemove", e => {
   }
 });
 
-
 // ================================================================
-// ⑨ INIT
+// ⑪ INIT
 // ================================================================
 loadSheet();
-
 </script>
 </body>
 </html>
