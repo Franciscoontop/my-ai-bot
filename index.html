@@ -198,6 +198,24 @@ function extractLeadData(text) {
     }
   }
 
+  // Fallback: if service still null, check the last AI message in chat history
+  // This catches cases where the AI mentioned a service but the user never typed it
+  if (!lead.service && chatHistory.length > 0) {
+    const lastAI = chatHistory.filter(m => m.role === "assistant").pop();
+    if (lastAI) {
+      const aiKeywords = ["haircut","fade","beard","trim","color","blowout","coaching",
+                          "training","massage","nails","lashes","wax","facial","cleaning",
+                          "plumbing","hvac","design","website","consult","repair","install",
+                          "landscaping","detailing","painting","electrical","strength"];
+      const aiLower = lastAI.content.toLowerCase();
+      const found   = aiKeywords.find(w => aiLower.includes(w));
+      if (found) {
+        lead.service = found;
+        console.log("🛠 Service captured from AI context:", lead.service);
+      }
+    }
+  }
+
   console.log("📋 Lead status:", JSON.stringify(lead));
 }
 
