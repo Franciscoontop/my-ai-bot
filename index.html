@@ -89,6 +89,18 @@
     .ai-msg      { background: #222; color: #fff; border: 1px solid #333; border-bottom-left-radius: 4px; }
     .user-msg    { background: #fff; color: #000; border-bottom-right-radius: 4px; }
 
+    /* ── BOOKING BUTTON ── */
+    .booking-btn-wrap { padding: 4px 14px 10px; }
+    .booking-btn {
+      display: block; width: 100%;
+      padding: 12px; background: #fff; color: #000;
+      border: none; border-radius: 12px;
+      font-size: 14px; font-weight: bold;
+      text-align: center; text-decoration: none;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .booking-btn:hover { background: #e0e0e0; }
+
     /* ── TYPING DOTS ── */
     .ai-msg.thinking-state { display: inline-flex !important; width: auto !important; padding: 6px 12px !important; align-items: center; }
     .thinking-dots { display: inline-flex; align-items: center; gap: 3px; }
@@ -381,6 +393,27 @@ Never ask for something already collected above.
 }
 
 // ================================================================
+// ⑦ BOOKING BUTTON
+// Shows a clickable book button in the chat when lead is complete
+// and the sheet has a booking_link row.
+// ================================================================
+function showBookingButton() {
+  const bookingLink = SHEET_DATA["booking_link"];
+  if (!bookingLink) return; // no link in sheet — skip
+
+  const container = document.getElementById("response-container");
+  const wrap      = document.createElement("div");
+  wrap.className  = "booking-btn-wrap";
+  wrap.innerHTML  = `
+    <a href="${bookingLink}" target="_blank" class="booking-btn">
+      📅 Book Your Appointment →
+    </a>
+  `;
+  container.appendChild(wrap);
+  container.scrollTop = container.scrollHeight;
+}
+
+// ================================================================
 // ⑦ SAVE LEAD TO GOOGLE SHEET
 // Fires once when all 4 fields are collected.
 // Uses no-cors because Google Apps Script requires it from browser.
@@ -461,10 +494,11 @@ async function send(overrideMsg = null) {
   const reply = await streamResponse(bubbleId);
   chatHistory.push({ role: "assistant", content: reply });
 
-  // Check after AI responds — fire sheet save if complete
+  // Check after AI responds — fire sheet save + show booking button if complete
   if (isLeadComplete() && !leadSent) {
     console.log("🎯 Lead complete — firing sheet save:", JSON.stringify(lead));
     saveLeadToSheet();
+    showBookingButton(); // shows book button if sheet has booking_link
   }
 }
 
